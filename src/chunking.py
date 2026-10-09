@@ -1,0 +1,1 @@
+# Суть файла: нарезка текста на куски с полями chunk_id, text, file, section, page.
