@@ -1,1 +1,10 @@
 // Суть файла: проверочные вопросы: вопрос, id правильного куска, сценарий и файл.
+{"question": "За сколько дней до отпуска нужно подать заявление?", "chunk_id": "", "scenario": "срок", "wording": "как в документе", "file": "poryadok_otpuska.md"}
+{"question": "До какого числа руководитель должен согласовать отпуск?", "chunk_id": "", "scenario": "срок", "wording": "как в документе", "file": "poryadok_otpuska.md"}
+{"question": "Что делать, если заявление подали позже срока?", "chunk_id": "", "scenario": "срок", "wording": "как в документе", "file": "poryadok_otpuska.md"}
+{"question": "Какой документ нужен, чтобы открыть командировку?", "chunk_id": "", "scenario": "документ", "wording": "как в документе", "file": "reglament_komandirovki.md"}
+{"question": "Что приложить к авансовому отчёту после поездки?", "chunk_id": "", "scenario": "документ", "wording": "как в документе", "file": "reglament_komandirovki.md"}
+{"question": "Можно ли поехать без служебного задания?", "chunk_id": "", "scenario": "документ", "wording": "как в документе", "file": "reglament_komandirovki.md"}
+{"question": "Кому не откроют доступ к платёжному контуру?", "chunk_id": "", "scenario": "условия", "wording": "как в документе", "file": "dostup_k_sistemam.md"}
+{"question": "Что делать, если заявка на доступ без согласования руководителя?", "chunk_id": "", "scenario": "условия", "wording": "как в документе", "file": "dostup_k_sistemam.md"}
+{"question": "Можно ли выдать доступ стажёру на время практики?", "chunk_id": "", "scenario": "условия", "wording": "как в документе", "file": "dostup_k_sistemam.md"}

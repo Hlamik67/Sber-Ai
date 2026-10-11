@@ -1,1 +1,22 @@
 # Суть файла: список того, что не попадает в git: модели, окружение, личные черновики.
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+.env
+.ipynb_checkpoints/
+models/*
+!models/.gitkeep
+data/processed/
+data/index/
+*.faiss
+*.index
+esdata/
+data/raw/private/
+report/personal/
+report/draft_*.md
+.DS_Store
+Thumbs.db
+*.log
