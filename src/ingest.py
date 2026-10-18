@@ -331,38 +331,46 @@ def _extract_docx(path: Path, file_hash: str) -> Document:
     docx_doc = DocxDocument(str(path))
 
     sections: list[Section] = []
-    section_path: list[str] = []
     text_blocks: list[str] = []
 
-    # Обходим элементы тела документа в том порядке, в котором они лежат в файле
     for child in docx_doc.element.body:
-        if child.tag.endswith('}p'):  # Параграф (w:p)
+        if child.tag.endswith('}p'):  # Параграф
             para = Paragraph(child, docx_doc)
             text = para.text.strip()
             if not text:
                 continue
 
-            # Проверяем, является ли параграф заголовком
             style_name = para.style.name if para.style else ""
+            is_heading = False
+            level = 1
+
+            # 1. Проверка по стандартному стилю Word
             if style_name.startswith("Heading"):
+                is_heading = True
                 try:
                     level = int(style_name.split(" ")[-1])
                 except ValueError:
                     level = 1
+            else:
+                # 2. Эвристика для «самодельных» заголовков
+                # Если параграф короткий и все его слова жирные
+                if len(text) < 100 and para.runs:
+                    all_bold = all(run.bold for run in para.runs if run.text.strip())
+                    if all_bold:
+                        is_heading = True
+                        level = 1  # Считаем такие заголовки первого уровня
 
-                # Обрезаем section_path до нужного уровня и добавляем новый
-                section_path = section_path[: level - 1] + [text]
+            if is_heading:
                 sections.append(Section(level=level, title=text))
 
             text_blocks.append(text)
 
-        elif child.tag.endswith('}tbl'):  # Таблица (w:tbl)
+        elif child.tag.endswith('}tbl'):  # Таблица
             table = Table(child, docx_doc)
             md_table = _docx_table_to_markdown(table)
             if md_table:
                 text_blocks.append(md_table)
 
-    # Собираем всё в один текст и чистим
     full_text = "\n\n".join(text_blocks)
     full_text = _clean_text(full_text)
 
@@ -375,7 +383,7 @@ def _extract_docx(path: Path, file_hash: str) -> Document:
         lang=_detect_lang(full_text),
         used_ocr=False,
         metadata={"size_bytes": path.stat().st_size},
-        pages=None,  # У DOCX нет фиксированных страниц
+        pages=None,
         sections=sections,
         text=full_text,
     )
