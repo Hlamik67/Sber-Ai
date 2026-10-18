@@ -4,19 +4,19 @@
 
 Новые файлы не заводим. Каждый пишет только в свои.
 
-Просьба коментарии в файлах не удалять. 
+Просьба коментарии в файлах не удалять.
 
-## Как скачать репозиторий 
+## Как скачать репозиторий
 
 Скачиваем весь репозиторий себе на комп через PowerShell/Терминал:
-Mac: 
-cd ~/Desktop
+Mac:
+cd \~/Desktop
 Windows:
-cd $HOME\Desktop 
+cd $HOME\\Desktop
 git clone https://github.com/Hlamik67/Sber-Ai.git
 cd Sber-Ai
 
-## Кто где пишит 
+## Кто где пишит
 
 Настя пишет README.md, TEAM.md, .gitignore, requirements.txt, docker-compose.yml, data/qa.jsonl, data/raw/README.md, три документа в data/raw и собирает report/final.md. Модели, индекс и экран она не пишет.
 
@@ -28,27 +28,27 @@ cd Sber-Ai
 
 notebooks — общая папка для черновиков. Демо и оценка оттуда не запускаются.
 
-В чужих файлах ничего не пишем 
+В чужих файлах ничего не пишем
 
-## Подгрузка изменений с Github себе: 
+## Подгрузка изменений с Github себе:
 
 Mac:
-cd ~/Desktop/Sber-Ai
+cd \~/Desktop/Sber-Ai
 git pull
 Windows:
-cd $HOME\Desktop\Sber-Ai
+cd $HOME\\Desktop\\Sber-Ai
 git pull
 
-Это делать каждый раз перед началом работы, чтобы все изменения с Github были на локальном компьютере 
+Это делать каждый раз перед началом работы, чтобы все изменения с Github были на локальном компьютере
 
-## Выгрузка в Github 
+## Выгрузка в Github
 
 Каждый один раз настраивает это у себя, в папке проекта.
-cd $HOME\Desktop\Sber-Ai
+cd $HOME\\Desktop\\Sber-Ai
 git config user.name "Имя Фамилия"
 git config user.email "почта указанная на Github"
 
-Для проверки: 
+Для проверки:
 git config user.name
 git config user.email
 
@@ -59,8 +59,22 @@ git add .
 git commit -m "Что изменилось"
 git push
 
-Примечание 
+Примечание
 git add . - выгружает все измененные файлы, если нужно выгрузить определенный файл, то вместо точки название файла
 
 ## Кто что сделал (пояснительная записка каждую неделю)
+
+Ксюша: app.py в корне.
+
+\- Экран загрузки документа (pdf, docx, txt). Сам файл не читает и не режет: передаёт в код Лизы Р (ingest\_file, chunk\_document) и сохраняет куски в Elasticsearch (index\_chunks).
+
+\- На экране у каждого куска: текст, файл, раздел, страница, номер куска.
+
+\- Ошибки показываются текстом: файл не выбран, пустой, слишком большой, не прочитался, база недоступна.
+
+\- Запуск из корня: docker compose up -d, затем streamlit run app.py.
+
+\- Проверено: docx дошёл до базы, куски видны. Проверка раздела у docx и pdf после правки Лизы Р в процессе.
+
+\- Нужно для requirements.txt (Настя): streamlit, python-docx, pymupdf, py3langid, ftfy, elasticsearch>=8,<9.
 
