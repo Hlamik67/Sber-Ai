@@ -6,6 +6,22 @@
   <component name="ChangeListManager">
     <list default="true" id="f709408a-9991-49d3-bb94-fc3fd2ce95c8" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/data/raw/~$st_data_docx.docx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/ingest_output/08a3cbd6b2b19a57020bea4a96090f0bc6ae0a363728694061b9244601a2dda0.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/ingest_output/15550e9dd5b32217dca2a050a6b3919c85985eb8d8591cbaf709a91f29077992.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/ingest_output/5f19785944ff94720691ab603b495d9500820f1a5b79d1fee894c6642520b4f7.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/ingest_output/661428dc0c640d8531ba16a5c1fb1e49dffd19f56d57ce3bf8176fd7ffcf1542.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/ingest_output/7bd0806bf9a8b47a8ee64a44713775f0543f908d1b6dc0612424f8e1cc16d254.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/ingest_output/f9c88cab61027cd262a0fbcbb5154ea70005c890eb01a15b2120db70bb2eff30.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/ingest_output/fe7568d59dfd5ccd0856185521cf3e1410f42cdfe3c3d8e9c3fc89f02ef3740b.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/chunking.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/chunking.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/config.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/config.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/index.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/index.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/ingest.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/ingest.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/ingest_output/08a3cbd6b2b19a57020bea4a96090f0bc6ae0a363728694061b9244601a2dda0.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/ingest_output/661428dc0c640d8531ba16a5c1fb1e49dffd19f56d57ce3bf8176fd7ffcf1542.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/ingest_output/7bd0806bf9a8b47a8ee64a44713775f0543f908d1b6dc0612424f8e1cc16d254.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/run_all_from_data.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/run_all_from_data.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/test_chunking.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/test_chunking.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -38,6 +54,104 @@
     &quot;settings.editor.selected.configurable&quot;: &quot;com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable&quot;
   }
 }</component>
+  <component name="RunManager">
+    <configuration default="true" type="PythonConfigurationType" factoryName="Python">
+      <module name="Sber-Ai" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="" />
+      <option name="IS_MODULE_SDK" value="false" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <option name="SCRIPT_NAME" value="" />
+      <option name="PARAMETERS" value="" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <option name="EMULATE_TERMINAL" value="false" />
+      <option name="MODULE_MODE" value="false" />
+      <option name="REDIRECT_INPUT" value="false" />
+      <option name="INPUT_FILE" value="" />
+      <method v="2" />
+    </configuration>
+    <configuration default="true" type="Tox" factoryName="Tox">
+      <module name="Sber-Ai" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="" />
+      <option name="IS_MODULE_SDK" value="false" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <method v="2" />
+    </configuration>
+    <configuration default="true" type="docs" factoryName="Docutils task">
+      <module name="Sber-Ai" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="" />
+      <option name="IS_MODULE_SDK" value="false" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <option name="docutils_input_file" value="" />
+      <option name="docutils_output_file" value="" />
+      <option name="docutils_params" value="" />
+      <option name="docutils_task" value="" />
+      <option name="docutils_open_in_browser" value="false" />
+      <method v="2" />
+    </configuration>
+    <configuration default="true" type="docs" factoryName="Sphinx task">
+      <module name="Sber-Ai" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="" />
+      <option name="IS_MODULE_SDK" value="false" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <option name="docutils_input_file" value="" />
+      <option name="docutils_output_file" value="" />
+      <option name="docutils_params" value="" />
+      <option name="docutils_task" value="" />
+      <option name="docutils_open_in_browser" value="false" />
+      <method v="2" />
+    </configuration>
+    <configuration default="true" type="tests" factoryName="Autodetect">
+      <module name="Sber-Ai" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="" />
+      <option name="IS_MODULE_SDK" value="false" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <option name="_new_additionalArguments" value="&quot;&quot;" />
+      <option name="_new_target" value="&quot;&quot;" />
+      <option name="_new_targetType" value="&quot;PATH&quot;" />
+      <method v="2" />
+    </configuration>
+    <configuration default="true" type="tests" factoryName="Doctests">
+      <module name="Sber-Ai" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="" />
+      <option name="IS_MODULE_SDK" value="false" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <option name="SCRIPT_NAME" value="" />
+      <option name="CLASS_NAME" value="" />
+      <option name="METHOD_NAME" value="" />
+      <option name="FOLDER_NAME" value="" />
+      <option name="TEST_TYPE" value="TEST_SCRIPT" />
+      <option name="PATTERN" value="" />
+      <option name="USE_PATTERN" value="false" />
+      <method v="2" />
+    </configuration>
+  </component>
   <component name="SpellCheckerSettings" RuntimeDictionaries="0" Folders="0" CustomDictionaries="0" DefaultDictionary="application-level" UseSingleDictionary="true" transferred="true" />
   <component name="TaskManager">
     <task active="true" id="Default" summary="Default task">

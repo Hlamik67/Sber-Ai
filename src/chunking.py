@@ -11,8 +11,8 @@ from typing import Optional
 # (Если хотите полностью убрать зависимость от ingest, можно использовать typing.Any)
 from ingest import Document
 
-DEFAULT_CHUNK_SIZE = 1000  # символов
-DEFAULT_OVERLAP = 150      # символов
+DEFAULT_CHUNK_SIZE = 400  # символов
+DEFAULT_OVERLAP = 80      # символов
 
 
 @dataclass
@@ -133,6 +133,9 @@ def _assign_sections(chunks: list[Chunk], text: str, sections: list) -> None:
 
 def _clean_toc(text: str) -> str:
     """Удаляет строки, которые выглядят как оглавление."""
+    # Удаляем HTML-комментарии
+    text = re.sub(r"<!--.*?-->", "", text, flags=re.DOTALL)
+
     lines = text.split("\n")
     cleaned = []
     for line in lines:

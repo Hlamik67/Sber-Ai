@@ -268,6 +268,8 @@ def _match_md_heading(line: str) -> Optional[tuple[int, str]]:
 
 def _clean_text(text: str) -> str:
     """Базовая нормализация и очистка от PDF-мусора."""
+    text = re.sub(r"<!--.*?-->", "", text, flags=re.DOTALL)
+
     text = unicodedata.normalize("NFKC", text)
     text = text.replace("\u200b", "").replace("\ufeff", "")
     text = text.replace("\xa0", " ")
