@@ -16,8 +16,7 @@ cd $HOME\Desktop
 git clone https://github.com/Hlamik67/Sber-Ai.git
 cd Sber-Ai
 
-## Кто где пишит 
->>>>>>> Stashed changes
+## Кто где пишет 
 
 Настя пишет README.md, TEAM.md, .gitignore, requirements.txt, docker-compose.yml, data/qa.jsonl, data/raw/README.md, три документа в data/raw и собирает report/final.md. Модели, индекс и экран она не пишет.
 
@@ -49,7 +48,7 @@ git config user.name "Имя Фамилия"
 git config user.email "почта указанная на Github"
 
 Для проверки: 
->>>>>>> Stashed changes
+
 git config user.name
 git config user.email
 
