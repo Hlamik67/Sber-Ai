@@ -20,3 +20,7 @@ report/draft_*.md
 .DS_Store
 Thumbs.db
 *.log
+.idea/
+ingest_output/
+src/ingest_output/
+~$*
