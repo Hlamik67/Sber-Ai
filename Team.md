@@ -4,19 +4,19 @@
 
 Новые файлы не заводим. Каждый пишет только в свои.
 
-Просьба коментарии в файлах не удалять. 
+Просьба коментарии в файлах не удалять.
 
-## Как скачать репозиторий 
+## Как скачать репозиторий
 
 Скачиваем весь репозиторий себе на комп через PowerShell/Терминал:
-Mac: 
-cd ~/Desktop
+Mac:
+cd \~/Desktop
 Windows:
-cd $HOME\Desktop 
+cd $HOME\\Desktop
 git clone https://github.com/Hlamik67/Sber-Ai.git
 cd Sber-Ai
 
-## Кто где пишет 
+## Кто где пишит
 
 Настя пишет README.md, TEAM.md, .gitignore, requirements.txt, docker-compose.yml, data/qa.jsonl, data/raw/README.md, три документа в data/raw и собирает report/final.md. Модели, индекс и экран она не пишет.
 
@@ -28,27 +28,27 @@ cd Sber-Ai
 
 notebooks — общая папка для черновиков. Демо и оценка оттуда не запускаются.
 
-В чужих файлах ничего не пишем 
+В чужих файлах ничего не пишем
 
-## Подгрузка изменений с Github себе: 
+## Подгрузка изменений с Github себе:
 
 Mac:
-cd ~/Desktop/Sber-Ai
+cd \~/Desktop/Sber-Ai
 git pull
 Windows:
-cd $HOME\Desktop\Sber-Ai
+cd $HOME\\Desktop\\Sber-Ai
 git pull
 
-Это делать каждый раз перед началом работы, чтобы все изменения с Github были на локальном компьютере 
+Это делать каждый раз перед началом работы, чтобы все изменения с Github были на локальном компьютере
 
-## Выгрузка в Github 
+## Выгрузка в Github
+
 Каждый один раз настраивает это у себя, в папке проекта.
-cd $HOME\Desktop\Sber-Ai
+cd $HOME\\Desktop\\Sber-Ai
 git config user.name "Имя Фамилия"
 git config user.email "почта указанная на Github"
 
-Для проверки: 
-
+Для проверки:
 git config user.name
 git config user.email
 
