@@ -1,20 +1,26 @@
 # Суть файла: запись кусков в Elasticsearch и выдача их обратно. Elasticsearch — это база, в которой лежат нарезанные куски документов и по которой идёт поиск.
 """Индексация кусков документов в Elasticsearch."""
 
+"""Индексация кусков документов в Elasticsearch."""
+
 import logging
 from typing import List
 
 from elasticsearch import Elasticsearch, helpers
 from chunking import Chunk
-from elasticsearch import BadRequestError
 import config
 
 logger = logging.getLogger("index")
 
 
 def get_es_client() -> Elasticsearch:
-    """Создать клиент Elasticsearch."""
-    return Elasticsearch(config.ES_HOST)
+    """Создать клиент Elasticsearch с увеличенным таймаутом."""
+    return Elasticsearch(
+        config.ES_HOST,
+        request_timeout=60,
+        retry_on_timeout=True,
+        max_retries=3
+    )
 
 
 def create_index_if_not_exists(es: Elasticsearch) -> None:
@@ -28,23 +34,23 @@ def create_index_if_not_exists(es: Elasticsearch) -> None:
                 "type": "text",
                 "analyzer": "russian"
             },
-            "section_path": {"type": "text"},
+            "section_path": {
+                "type": "text",
+                "analyzer": "russian"
+            },
             "page_number": {"type": "integer"}
         }
     }
 
     try:
-        es.indices.create(
-            index=config.ES_INDEX_NAME,
-            mappings=mapping
-        )
+        es.indices.create(index=config.ES_INDEX_NAME, mappings=mapping)
         logger.info("Индекс %s создан", config.ES_INDEX_NAME)
-    except BadRequestError as e:
-        # Если индекс уже существует — это нормально, просто пропускаем
+    except Exception as e:
+        # Если индекс уже существует, ES выкинет ошибку. Это нормально.
         if "resource_already_exists_exception" in str(e):
             logger.info("Индекс %s уже существует", config.ES_INDEX_NAME)
         else:
-            # Если это другая ошибка (например, неверный маппинг) — пробрасываем
+            logger.error("Ошибка создания индекса: %s", e)
             raise
 
 
@@ -57,7 +63,7 @@ def index_chunks(chunks: List[Chunk]) -> None:
     for chunk in chunks:
         actions.append({
             "_index": config.ES_INDEX_NAME,
-            "_id": chunk.chunk_id,  # Наш стабильный ID
+            "_id": chunk.chunk_id,
             "_source": {
                 "chunk_id": chunk.chunk_id,
                 "document_id": chunk.document_id,

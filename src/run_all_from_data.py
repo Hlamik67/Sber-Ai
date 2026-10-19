@@ -1,4 +1,4 @@
-"""Главный скрипт: загрузка папки data, нарезка и индексация."""
+"""Главный скрипт: загрузка папки data/raw, нарезка и индексация."""
 
 import logging
 from ingest import process_data_folder
@@ -9,13 +9,13 @@ logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 logger = logging.getLogger("main")
 
 if __name__ == "__main__":
-    logger.info("=== Старт обработки папки data ===")
+    logger.info("=== Старт обработки папки data/raw ===")
 
-    # 1. Извлекаем и чистим текст из файлов в data/
-    docs = process_data_folder(save_json=True)
+    # 1. Извлекаем текст (все в памяти)
+    docs = process_data_folder()
 
     if not docs:
-        logger.error("Нет документов для обработки. Проверьте папку data.")
+        logger.error("Нет документов для обработки. Проверьте папку data/raw.")
         exit(1)
 
     total_chunks = 0

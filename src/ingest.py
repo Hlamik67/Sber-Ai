@@ -76,13 +76,16 @@ def _detect_type(path: Path) -> str:
     return path.suffix.lower().lstrip(".")
 
 def _is_hidden_or_temp(path: Path) -> bool:
-    """Отсеять скрытые и временные файлы."""
+    """Отсеять скрытые, временные и служебные файлы."""
     name = path.name
     if name.startswith("."):
         return True
     if name.startswith("~$"):           # временные файлы Word
         return True
     if name in {"Thumbs.db", ".DS_Store"}:
+        return True
+    # Игнорируем README и прочие служебные файлы
+    if name.lower().startswith("readme"):
         return True
     return False
 
@@ -193,30 +196,6 @@ def ingest_folder(
     logger.info("Папка обработана: успешно %d файлов", len(results))
     return results
 
-# ============================================================
-# Сохранение / загрузка JSON
-# ============================================================
-
-def save_document(doc: Document) -> Path:
-    """Сохранить Document в ingest_output/<hash>.json."""
-    config.INGEST_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-    out_path = config.INGEST_OUTPUT_DIR / f"{doc.file_hash}.json"
-    with out_path.open("w", encoding="utf-8") as f:
-        json.dump(asdict(doc), f, ensure_ascii=False, indent=2)
-    return out_path
-
-
-def load_document(file_hash: str) -> Optional[Document]:
-    """Загрузить Document из JSON."""
-    path = config.INGEST_OUTPUT_DIR / f"{file_hash}.json"
-    if not path.exists():
-        return None
-    with path.open("r", encoding="utf-8") as f:
-        data = json.load(f)
-
-    data["pages"] = [Page(**p) for p in data["pages"]] if data["pages"] else None
-    data["sections"] = [Section(**s) for s in data["sections"]]
-    return Document(**data)
 
 # ============================================================
 # MD
@@ -637,26 +616,23 @@ def _is_pdf_heading(block: dict, all_blocks: list[dict]) -> bool:
 # Пакетная загрузка папки data
 # ============================================================
 
-def process_data_folder(save_json: bool = True) -> list[Document]:
-    """Обработать все файлы из папки data и сохранить их в JSON.
+def process_data_folder(folder_path: str | Path | None = None) -> list[Document]:
+    """Обработать все файлы из указанной папки (по умолчанию data/raw).
 
     Возвращает список документов для дальнейшей нарезки и индексации.
     """
     from pathlib import Path
-    import config
 
-    data_dir = Path(config.DATA_DIR)
+    if folder_path is None:
+        folder_path = config.DATA_DIR
+    else:
+        folder_path = Path(folder_path)
 
-    if not data_dir.exists():
-        logger.warning("Папка %s не существует", data_dir)
+    if not folder_path.exists():
+        logger.warning("Папка %s не существует", folder_path)
         return []
 
-    docs = ingest_folder(data_dir)
-    logger.info("Из папки %s загружено документов: %d", data_dir, len(docs))
-
-    if save_json:
-        for doc in docs:
-            out_path = save_document(doc)
-            logger.info("JSON сохранен: %s", out_path.name)
+    docs = ingest_folder(folder_path)
+    logger.info("Из папки %s загружено документов: %d", folder_path, len(docs))
 
     return docs

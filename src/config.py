@@ -8,7 +8,6 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 # --- Пути ---
 DATA_DIR = BASE_DIR / "data" / "raw"
-INGEST_OUTPUT_DIR = BASE_DIR / "ingest_output"
 
 # --- Поддерживаемые форматы ---
 SUPPORTED_EXTENSIONS = {".md", ".pdf", ".docx"}
