@@ -60,10 +60,9 @@ def chunk_document(
             chunks.extend(page_chunks)
             global_char_offset += len(page_text) + 2
     else:
-        # --- Ветка для MD и DOCX (нет страниц) ---
+        # Ветка для MD и DOCX (нет страниц)
         clean_text = _clean_toc(doc.text)
 
-        # 1. Нарезаем без разделов
         page_chunks = _split_text(
             text=clean_text,
             chunk_size=chunk_size,
@@ -74,49 +73,40 @@ def chunk_document(
             start_offset=0
         )
 
-        # 2. Назначаем разделы на основе позиций заголовков из ingest
-        if doc.sections:
-            _assign_sections(page_chunks, clean_text, doc.sections)
+        # Просто передаем текст, функция сама найдет ##
+        _assign_sections(page_chunks, clean_text)
 
         chunks.extend(page_chunks)
 
     return chunks
 
 
-def _assign_sections(chunks: list[Chunk], text: str, sections: list) -> None:
-    """Проставить section_path кускам на основе позиций заголовков в тексте."""
-    if not sections:
-        return
-
-    # Разбиваем текст на строки с их позициями (для поиска заголовков)
-    lines = text.splitlines(keepends=True)
-    line_positions = []
-    current_pos = 0
-    for line in lines:
-        line_positions.append((current_pos, line.strip()))
-        current_pos += len(line)
-
+def _assign_sections(chunks: list[Chunk], text: str) -> None:
+    """Проставить section_path кускам на основе Markdown-заголовков в тексте."""
+    # Ищем строки, которые начинаются с # (заголовки Markdown)
     positioned_sections = []
 
-    # Ищем каждый заголовок среди строк текста
-    for sec in sections:
-        found = False
-        for pos, line_text in line_positions:
-            if line_text == sec.title.strip():
-                positioned_sections.append((pos, sec))
-                found = True
-                break
-        if not found:
-            # Запасной вариант: поиск подстроки
-            pos = text.find(sec.title)
-            if pos != -1:
-                positioned_sections.append((pos, sec))
+    # Разбиваем текст на строки, сохраняя позиции
+    current_pos = 0
+    for line in text.splitlines(keepends=True):
+        stripped = line.strip()
+        if stripped.startswith("#"):
+            # Считаем количество решеток (уровень заголовка)
+            level = 0
+            for char in stripped:
+                if char == "#":
+                    level += 1
+                else:
+                    break
+
+            # Отрезаем решетки и пробелы, получаем чистый заголовок
+            title = stripped[level:].strip()
+            if title:
+                positioned_sections.append((current_pos, level, title))
+        current_pos += len(line)
 
     if not positioned_sections:
         return
-
-    # Сортируем заголовки по их позиции в тексте
-    positioned_sections.sort(key=lambda x: x[0])
 
     current_stack = []
     sec_idx = 0
@@ -124,12 +114,11 @@ def _assign_sections(chunks: list[Chunk], text: str, sections: list) -> None:
     for chunk in chunks:
         # Обновляем стек разделов, которые начались до начала этого куска
         while sec_idx < len(positioned_sections) and positioned_sections[sec_idx][0] <= chunk.start_char:
-            pos, sec = positioned_sections[sec_idx]
-            current_stack = current_stack[:sec.level - 1] + [sec.title]
+            pos, level, title = positioned_sections[sec_idx]
+            current_stack = current_stack[:level - 1] + [title]
             sec_idx += 1
 
         chunk.section_path = list(current_stack)
-
 
 def _clean_toc(text: str) -> str:
     """Удаляет строки, которые выглядят как оглавление."""
