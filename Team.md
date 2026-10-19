@@ -64,6 +64,8 @@ git add . - выгружает все измененные файлы, если 
 
 ## Кто что сделал (пояснительная записка каждую неделю)
 
+12 - 18 октября 
+
 Ксюша: app.py в корне.
 
 \- Экран загрузки документа (pdf, docx, txt). Сам файл не читает и не режет: передаёт в код Лизы Р (ingest\_file, chunk\_document) и сохраняет куски в Elasticsearch (index\_chunks).
@@ -79,7 +81,7 @@ git add . - выгружает все измененные файлы, если 
 \- Нужно для requirements.txt (Настя): streamlit, python-docx, pymupdf, py3langid, ftfy, elasticsearch>=8,<9.
 
 
-Лиза: /src: `config.py`; `ingest.py`; `chunking.py`; `index.py`; `search.py`; `run_all_from_data.py`; `test_ingest.py`; `test_chunking.py`; `test_index.py`; `test_search.py`
+Лиза Р: /src: `config.py`; `ingest.py`; `chunking.py`; `index.py`; `search.py`; `run_all_from_data.py`; `test_ingest.py`; `test_chunking.py`; `test_index.py`; `test_search.py`
 
 - `config.py` хранит все настройки проекта: пути к папкам (`data/raw`, `ingest_output`), настройки Elasticsearch, размеры чанков, лимиты OCR и поддерживаемые форматы файлов. Позволяет менять параметры без правки основного кода.
 
@@ -104,3 +106,7 @@ git add . - выгружает все измененные файлы, если 
 - `test_search.py` тестовый скрипт, который задает несколько вопросов и показывает, какие куски текста нашлись в базе.
 
 - `requirements.txt` добавлены `ftfy>=6.1.3` (чинит битые кодировки), `py3langid>=0.2.2` (определяет язык документа), `PyMuPDF>=1.24.0` (вместо `pypdf`)
+
+Лиза К: 
+
+Настя: 
