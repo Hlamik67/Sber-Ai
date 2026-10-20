@@ -3,6 +3,7 @@
 Цепочка: загруженный файл -> временный файл -> ingest_file (Лиза Р) -> Document
          -> chunk_document (Лиза Р) -> список Chunk -> index_chunks (Elasticsearch)
          -> показ кусков на экране.
+Вопрос:  поле вопроса -> search (Лиза Р) -> список кусков с оценкой и источником.
 
 Запуск из корня репозитория:
     docker compose up -d
@@ -23,6 +24,7 @@ import config  # noqa: E402
 from ingest import ingest_file  # noqa: E402
 from chunking import chunk_document  # noqa: E402
 from index import index_chunks  # noqa: E402
+from search import search as search_chunks  # noqa: E402
 from elasticsearch import ConnectionError as ESConnectionError  # noqa: E402
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
@@ -90,6 +92,37 @@ def send(filename: str, data: bytes) -> dict:
     }
 
 
+TOP_K = 5  # сколько кусков показываем по вопросу
+
+
+def ask(question: str) -> dict:
+    """Вопрос -> search (Лиза Р) -> формат экрана.
+
+    Успех:  {"status": "ok", "results": [{chunk_id, text, file, section, page, score}]}
+            results пустой, если ничего не нашлось.
+    Ошибка: {"status": "error", "code": str, "message": str}
+    """
+    try:
+        found = search_chunks(question, top_k=TOP_K)
+    except Exception as e:
+        return {"status": "error", "code": "search_failed",
+                "message": f"Поиск не сработал ({type(e).__name__}: {e})."}
+    return {
+        "status": "ok",
+        "results": [
+            {
+                "chunk_id": r.chunk_id,
+                "text": r.text,
+                "file": r.file_name,
+                "section": " / ".join(r.section_path) if r.section_path else "",
+                "page": r.page_number,
+                "score": r.score,
+            }
+            for r in found
+        ],
+    }
+
+
 st.set_page_config(page_title="Сбер ИИ", page_icon="📄")
 st.title("Загрузка документа")
 st.caption("Выберите файл. Он будет нарезан на фрагменты, ниже появятся фрагменты с источником.")
@@ -126,4 +159,35 @@ if st.button("Отправить", type="primary"):
                     )
 
 st.divider()
-st.text_input("Вопрос", disabled=True, placeholder="Поиск появится на следующей неделе")
+st.subheader("Вопрос")
+with st.form("ask_form"):
+    question = st.text_input("Ваш вопрос", placeholder="Например: какой срок рассмотрения обращения?")
+    asked = st.form_submit_button("Найти", type="primary")
+
+if asked:
+    if not question.strip():
+        st.error("Введите вопрос.")
+    else:
+        with st.spinner("Ищем…"):
+            ans = ask(question.strip())
+        if ans["status"] == "error":
+            st.error(ans.get("message", "Поиск не сработал."))
+        elif not ans["results"]:
+            # Заглушка: подробные причины (файл не прочитался, нет общих слов, база пуста)
+            # появятся в коде следующей недели.
+            st.warning("Ничего не найдено. Возможно, в вопросе нет слов из документов, "
+                       "или в базе ещё нет документов.")
+        else:
+            st.success(f"Найдено фрагментов: {len(ans['results'])}")
+            top = ans["results"][0]["score"] or 1.0
+            for r in ans["results"]:
+                with st.container(border=True):
+                    st.text(r["text"])
+                    share = max(0.0, min(1.0, r["score"] / top))
+                    st.progress(share)
+                    st.caption(
+                        f"Насколько подошёл: {r['score']:.2f} ({share:.0%} от лучшего) · "
+                        f"Файл: {r['file']} · Раздел: {r['section'] or 'не указан'} · "
+                        f"Страница: {r['page'] if r['page'] is not None else 'не указана'} · "
+                        f"Номер куска: {r['chunk_id']}"
+                    )
