@@ -62,6 +62,27 @@ git push
 Примечание
 git add . - выгружает все измененные файлы, если нужно выгрузить определенный файл, то вместо точки название файла
 
+## Запуск сайта с нуля 
+
+Windows:
+docker compose up
+
+Далее в новом терминале 
+python -m venv venv
+.\venv\Scripts\activate
+(Если PowerShell выдаст ошибку про execution policy, выполни один раз: Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser, нажми Y, и попробуй снова).
+pip install -r requirements.txt
+streamlit run app.py
+
+Mac:
+docker compose up
+
+Далее в новом терминале 
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+streamlit run app.py
+
 ## Кто что сделал (пояснительная записка каждую неделю)
 
 12 - 18 октября 
