@@ -8,6 +8,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 # --- Пути ---
 DATA_DIR = BASE_DIR / "data" / "raw"
+# DATA_DIR = BASE_DIR / "data" / "test"
 
 # --- Поддерживаемые форматы ---
 SUPPORTED_EXTENSIONS = {".md", ".pdf", ".docx"}
@@ -31,3 +32,7 @@ MAX_FILE_SIZE_MB = 50
 # --- Elasticsearch ---
 ES_HOST = "http://localhost:9200"
 ES_INDEX_NAME = "documents"
+
+# --- Chunking ---
+CHUNK_SIZE = 400  # символов
+CHUNK_OVERLAP = 80      # символов
