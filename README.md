@@ -11,19 +11,19 @@ Windows:
 docker compose up
 
 Далее в новом терминале 
-python -m venv venv
-.\venv\Scripts\activate
-pip install -r requirements.txt
-streamlit run app.py
+\- python -m venv venv
+\- .\venv\Scripts\activate
+\- pip install -r requirements.txt
+\- streamlit run app.py
 
 Mac:
 docker compose up
 
 Далее в новом терминале 
-python3 -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-streamlit run app.py
+\- python3 -m venv venv
+\- source venv/bin/activate
+\- pip install -r requirements.txt
+\- streamlit run app.py
 
 <!-- # Потом допишу  -->
 
