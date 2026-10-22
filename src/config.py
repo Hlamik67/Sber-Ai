@@ -31,3 +31,6 @@ MAX_FILE_SIZE_MB = 50
 # --- Elasticsearch ---
 ES_HOST = "http://localhost:9200"
 ES_INDEX_NAME = "documents"
+
+CHUNK_SIZE = 400  # символов
+CHUNK_OVERLAP = 80      # символов
