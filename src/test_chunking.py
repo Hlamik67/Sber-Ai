@@ -25,7 +25,7 @@ print(f"Документ: {doc.file_name}")
 print(f"Найдено секций: {len(doc.sections)}")
 
 # 2. Нарезаем
-chunks = chunk_document(doc, chunk_size=1000, overlap=150)
+chunks = chunk_document(doc, chunk_size=1000)
 print(f"Всего кусков: {len(chunks)}\n")
 
 for i, chunk in enumerate(chunks):

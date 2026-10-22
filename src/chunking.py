@@ -1,4 +1,4 @@
-"""Нарезка документа на куски (чанки) с перекрытием."""
+"""Нарезка документа на куски (чанки)."""
 
 from __future__ import annotations
 
@@ -8,8 +8,7 @@ from dataclasses import dataclass
 from typing import Optional
 
 from ingest import Document
-from config import CHUNK_SIZE, CHUNK_OVERLAP
-
+from config import CHUNK_SIZE
 
 @dataclass
 class Chunk:
@@ -24,19 +23,17 @@ class Chunk:
 
 
 def chunk_document(
-        doc: Document,
-        chunk_size: int = CHUNK_SIZE,
-        overlap: int = CHUNK_OVERLAP,
+    doc: Document,
+    chunk_size: int = CHUNK_SIZE,
 ) -> list[Chunk]:
-    """Разбить документ на куски, уважая границы страниц и разделов."""
-    if overlap >= chunk_size:
-        raise ValueError("overlap должен быть меньше chunk_size")
-
+    """Разбить документ на куски, уважая границы страниц и разделов.
+    Перекрытие (overlap) убрано по требованию.
+    """
     chunks: list[Chunk] = []
     global_char_offset = 0
 
     if doc.pages:
-        # --- Ветка для PDF (режем постранично, как раньше) ---
+        # --- Ветка для PDF (постранично, без перекрытия) ---
         valid_pages = []
         for page in doc.pages:
             clean_text = _clean_text(page.text)
@@ -47,7 +44,6 @@ def chunk_document(
             page_chunks = _split_by_chars(
                 text=page_text,
                 chunk_size=chunk_size,
-                overlap=overlap,
                 doc=doc,
                 section_path=page.section_path,
                 page_number=page.page_number,
@@ -58,20 +54,19 @@ def chunk_document(
     else:
         # --- Ветка для MD и DOCX (режем по заголовкам!) ---
         clean_text = _clean_text(doc.text)
-        chunks = _split_by_sections(clean_text, doc, chunk_size, overlap)
+        chunks = _split_by_sections(clean_text, doc, chunk_size)
 
     return chunks
 
 
-def _split_by_sections(text: str, doc: Document, chunk_size: int, overlap: int) -> list[Chunk]:
-    """Режет текст сначала по заголовкам (#, ##, ### или стилям Word), затем по размеру."""
+def _split_by_sections(text: str, doc: Document, chunk_size: int) -> list[Chunk]:
+    """Режет текст сначала по заголовкам, затем длинные секции по размеру."""
     chunks = []
 
     # 1. Находим все заголовки и их позиции в тексте
     header_positions = []
 
     if doc.file_type == "md":
-        # Для Markdown ищем решетки
         current_pos = 0
         for line in text.splitlines(keepends=True):
             stripped = line.strip()
@@ -89,21 +84,20 @@ def _split_by_sections(text: str, doc: Document, chunk_size: int, overlap: int) 
                 header_positions.append((pos, sec.level, sec.title))
         header_positions.sort(key=lambda x: x[0])
 
-    # 2. Если заголовков нет, просто режем весь текст по размеру
+    # 2. Если заголовков нет, режем весь текст просто по размеру
     if not header_positions:
-        return _split_by_chars(text, chunk_size, overlap, doc, [], None, 0)
+        return _split_by_chars(text, chunk_size, doc, [], None, 0)
 
-    # 3. Режем текст на секции по заголовкам
+    # 3. Формируем секции: каждый заголовок + текст до следующего заголовка
     current_stack = []
     sections_data = []
 
     for i, (pos, level, title) in enumerate(header_positions):
         current_stack = current_stack[:level - 1] + [title]
 
-        # Начало секции (с самого заголовка)
         start = pos
-        # Конец секции (до следующего заголовка или до конца текста)
-        end = header_positions[i + 1][0] if i + 1 < len(header_positions) else len(text)
+        # Конец секции — начало следующего заголовка или конец текста
+        end = header_positions[i+1][0] if i + 1 < len(header_positions) else len(text)
 
         section_text = text[start:end].strip()
         if section_text:
@@ -113,9 +107,9 @@ def _split_by_sections(text: str, doc: Document, chunk_size: int, overlap: int) 
                 "start_offset": start
             })
 
-    # 4. Нарезаем каждую секцию, если она превышает chunk_size
+    # 4. Нарезаем каждую секцию
     for sec in sections_data:
-        # Если секция короткая — оставляем как есть
+        # Если секция короткая — оставляем как есть (даже если меньше chunk_size)
         if len(sec["text"]) <= chunk_size:
             chunk_id = _generate_chunk_id(doc.file_hash, sec["text"], sec["start_offset"])
             chunks.append(Chunk(
@@ -129,11 +123,10 @@ def _split_by_sections(text: str, doc: Document, chunk_size: int, overlap: int) 
                 end_char=sec["start_offset"] + len(sec["text"])
             ))
         else:
-            # Если секция длинная — режем внутри неё
+            # Если секция длинная — режем внутри неё, но без перекрытия (overlap)
             sub_chunks = _split_by_chars(
                 text=sec["text"],
                 chunk_size=chunk_size,
-                overlap=overlap,
                 doc=doc,
                 section_path=sec["section_path"],
                 page_number=None,
@@ -145,15 +138,14 @@ def _split_by_sections(text: str, doc: Document, chunk_size: int, overlap: int) 
 
 
 def _split_by_chars(
-        text: str,
-        chunk_size: int,
-        overlap: int,
-        doc: Document,
-        section_path: list[str],
-        page_number: Optional[int],
-        start_offset: int
+    text: str,
+    chunk_size: int,
+    doc: Document,
+    section_path: list[str],
+    page_number: Optional[int],
+    start_offset: int
 ) -> list[Chunk]:
-    """Вспомогательная функция: режет сплошной текст по размеру."""
+    """Режет сплошной текст по размеру БЕЗ перекрытия."""
     chunks = []
     start = 0
     text_len = len(text)
@@ -161,6 +153,7 @@ def _split_by_chars(
     while start < text_len:
         end = start + chunk_size
 
+        # Ищем красивое место для разреза (точка или пробел)
         if end < text_len:
             lookback_start = max(start, end - 300)
             chunk_str = text[lookback_start:end]
@@ -180,7 +173,8 @@ def _split_by_chars(
 
         chunk_text = text[start:end].strip()
 
-        if chunk_text and len(chunk_text) > 50:
+        # Если кусок не пустой (порог снизили до 10, чтобы заголовки не выкидывались)
+        if chunk_text and len(chunk_text) > 10:
             chunk_id = _generate_chunk_id(doc.file_hash, chunk_text, start_offset + start)
 
             chunks.append(Chunk(
@@ -194,15 +188,14 @@ def _split_by_chars(
                 end_char=start_offset + end
             ))
 
-        next_start = end - overlap
-        if next_start > 0:
-            space_idx = text.find(' ', next_start)
-            if space_idx != -1 and space_idx < end:
-                next_start = space_idx + 1
+        # Сдвигаем старт вперед без перекрытия
+        start = end
 
-        start = next_start
-        if start >= end:
-            break
+        # Чтобы не обрезать слово в начале нового куска, сдвигаем до пробела
+        if start < text_len:
+            space_idx = text.find(' ', start)
+            if space_idx != -1:
+                start = space_idx + 1
 
     return chunks
 
