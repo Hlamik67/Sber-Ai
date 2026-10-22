@@ -161,20 +161,29 @@ def process_upload(uploaded) -> dict:
 # Оформление (зеленая тема)
 # ---------------------------------------------------------------------------
 CSS = """
-:root { --g:#21A038; --gd:#0f6b2a; --gl:#e9f6ed; --gb:#cfe8d6; }
+:root {
+    --g: #21A038;                      /* основной зелёный */
+    --tint: rgba(33,160,56,.08);       /* лёгкая зелёная подложка: видна и на светлом, и на тёмном фоне */
+    --tint-strong: rgba(33,160,56,.18);
+    --line: rgba(33,160,56,.40);
+    /* Зелёный текст: зелёный смешивается с цветом текста текущей темы.
+       Светлая тема -> тёмно-зелёный, тёмная тема -> светло-зелёный. */
+    --green-text: color-mix(in srgb, #21A038 62%, currentColor);
+}
 
-[data-testid="stAppViewContainer"] { background: linear-gradient(180deg, #f1f9f4 0%, #ffffff 55%); }
+/* Фон приложения не перекрашиваем (его задаёт тема Streamlit), только добавляем зелёный оттенок сверху */
+[data-testid="stAppViewContainer"] { background-image: linear-gradient(180deg, var(--tint-strong) 0%, transparent 55%); }
 [data-testid="stHeader"] { background: transparent; }
 .block-container { padding-top: 2rem; max-width: 1200px; }
 
 .hero { background: linear-gradient(120deg, #0f6b2a 0%, #21A038 60%, #5cc77a 100%);
         border-radius: 18px; padding: 1.6rem 2rem; margin-bottom: 1.6rem;
-        box-shadow: 0 6px 18px rgba(15,107,42,.18); }
+        box-shadow: 0 6px 18px rgba(15,107,42,.25); }
 .hero h1 { color: #ffffff !important; margin: 0 0 .3rem 0 !important; padding: 0 !important;
            font-size: 2rem; }
 .hero p { color: #e7f7ec !important; margin: 0 !important; font-size: 1.02rem; }
 
-.section-title { font-size: 1.2rem; font-weight: 600; color: var(--gd); margin: .2rem 0 .7rem; }
+.section-title { font-size: 1.2rem; font-weight: 600; color: var(--green-text); margin: .2rem 0 .7rem; }
 .step { display: inline-flex; width: 1.7rem; height: 1.7rem; align-items: center;
         justify-content: center; border-radius: 50%; background: var(--g); color: #fff;
         font-size: .95rem; margin-right: .5rem; }
@@ -187,26 +196,35 @@ button[data-testid="stBaseButton-primaryFormSubmit"] {
 button[kind="primary"]:hover,
 button[data-testid="stBaseButton-primary"]:hover,
 button[data-testid="stBaseButton-primaryFormSubmit"]:hover {
-    background: var(--gd) !important; border-color: var(--gd) !important; }
+    background: #0f6b2a !important; border-color: #0f6b2a !important; }
 
-[data-testid="stFileUploaderDropzone"] { background: var(--gl); border: 1.5px dashed var(--g);
+[data-testid="stFileUploaderDropzone"] { background: var(--tint); border: 1.5px dashed var(--g);
                                          border-radius: 12px; }
-[data-testid="stForm"] { background: #ffffff; border: 1px solid var(--gb); border-radius: 14px; }
+[data-testid="stForm"] { background: var(--tint); border: 1px solid var(--line); border-radius: 14px; }
 div[data-baseweb="input"]:focus-within { border-color: var(--g) !important; }
 [data-testid="stTextInput"] input:focus { box-shadow: none !important; }
 
-[data-testid="stExpander"] { background: #ffffff; border: 1px solid var(--gb); border-radius: 12px; }
-[data-testid="stExpander"] summary { color: var(--gd); font-weight: 600; }
+[data-testid="stExpander"] { background: var(--tint); border: 1px solid var(--line); border-radius: 12px; }
+[data-testid="stExpander"] summary,
+[data-testid="stExpander"] summary p { color: var(--green-text) !important; font-weight: 600; }
 
-.card { background: #ffffff; border: 1px solid var(--gb); border-left: 5px solid var(--g);
-        border-radius: 12px; padding: .9rem 1.1rem; margin: .6rem 0;
-        box-shadow: 0 1px 3px rgba(15,107,42,.08); }
-.card-text { color: #1f2a24; line-height: 1.55; font-size: .97rem; }
-.card-meta { margin-top: .6rem; color: #6b7f73; font-size: .8rem; }
+/* Карточки: фон и рамка прозрачные-зелёные, текст берёт цвет темы */
+.card { background: var(--tint); border: 1px solid var(--line); border-left: 5px solid var(--g);
+        border-radius: 12px; padding: .9rem 1.1rem; margin: .6rem 0; }
+.card-text { line-height: 1.55; font-size: .97rem; }
+.card-meta { margin-top: .6rem; opacity: .65; font-size: .8rem; }
 .match { display: flex; align-items: center; gap: .7rem; margin-bottom: .6rem; }
-.match-bar { flex: 1; height: 8px; background: #e3f1e8; border-radius: 999px; overflow: hidden; }
+.match-bar { flex: 1; height: 8px; background: var(--tint-strong); border-radius: 999px; overflow: hidden; }
 .match-fill { height: 100%; background: linear-gradient(90deg, #21A038, #5cc77a); border-radius: 999px; }
-.match-label { font-size: .8rem; color: var(--gd); font-weight: 600; white-space: nowrap; }
+.match-label { font-size: .8rem; color: var(--green-text); font-weight: 600; white-space: nowrap; }
+
+/* Плашки сообщений: цветной полупрозрачный фон + текст цвета темы, читаются в светлой и тёмной теме */
+.note { border-radius: 12px; padding: .8rem 1rem; margin: .5rem 0; font-size: .95rem;
+        line-height: 1.45; border: 1px solid; border-left-width: 5px; }
+.note-success { background: rgba(33,160,56,.14);  border-color: rgba(33,160,56,.65); }
+.note-error   { background: rgba(229,57,53,.14);  border-color: rgba(229,57,53,.70); }
+.note-warning { background: rgba(255,179,0,.18);  border-color: rgba(255,179,0,.75); }
+.note-info    { background: rgba(30,136,229,.14); border-color: rgba(30,136,229,.70); }
 """
 
 
@@ -235,6 +253,11 @@ def card(text: str, meta: str, share: float | None = None, label: str = "") -> N
     )
 
 
+def notice(level: str, text: str) -> None:
+    """Плашка с сообщением (success / error / warning / info) в зелёной гамме, читается в светлой и тёмной теме."""
+    st.markdown(f'<div class="note note-{level}">{esc(text)}</div>', unsafe_allow_html=True)
+
+
 def section_title(number: str, title: str) -> None:
     st.markdown(f'<div class="section-title"><span class="step">{number}</span>{title}</div>',
                 unsafe_allow_html=True)
@@ -251,7 +274,7 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-NOTICE = {"success": st.success, "error": st.error, "warning": st.warning, "info": st.info}
+NOTICE = {lvl: (lambda text, lvl=lvl: notice(lvl, text)) for lvl in ("success", "error", "warning", "info")}
 
 left, right = st.columns([1, 1.5], gap="large")
 
@@ -288,19 +311,19 @@ with right:
     ans_state = st.session_state.get("answer")
     if ans_state:
         if ans_state.get("error"):
-            st.error(ans_state["error"])
+            notice("error", ans_state["error"])
         else:
             ans = ans_state["ans"]
             st.caption(f"Ваш вопрос: «{ans_state['question']}»")
             if ans["status"] == "error":
-                st.error(ans.get("message", "Поиск не сработал."))
+                notice("error", ans.get("message", "Поиск не сработал."))
             elif not ans["results"]:
                 # Заглушка: подробные причины (файл не прочитался, нет общих слов, база пуста)
                 # появятся в коде следующей недели.
-                st.warning("Ничего не найдено. Возможно, в вопросе нет слов из документов, "
-                           "или в базе ещё нет документов.")
+                notice("warning", "Ничего не найдено. Возможно, в вопросе нет слов из документов, "
+                                  "или в базе ещё нет документов.")
             else:
-                st.success(f"Найдено фрагментов: {len(ans['results'])}")
+                notice("success", f"Найдено фрагментов: {len(ans['results'])}")
                 top = ans["results"][0]["score"] or 1.0
                 for r in ans["results"]:
                     share = max(0.0, min(1.0, r["score"] / top))
