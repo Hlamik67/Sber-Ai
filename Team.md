@@ -83,6 +83,32 @@ source venv/bin/activate
 pip install -r requirements.txt
 streamlit run app.py
 
+## Работа с тестовыми данными 
+
+Windows:
+Включить виртуальное окружение (venv) перед
+
+Чтобы посмотреть какие файлы загружены в систему: 
+curl.exe -s "http://localhost:9200/documents/_search?pretty" | Select-String '"file_name"'
+
+Загрузка тест файлов из data/raw:
+python src/run_all_from_data.py
+
+Удалить все загруженные файлы из системы:
+curl.exe -X DELETE "http://localhost:9200/documents"
+
+Mac:
+Включить виртуальное окружение (venv) перед
+
+Чтобы посмотреть какие файлы загружены в систему: 
+curl -s "http://localhost:9200/documents/_search?pretty" | grep '"file_name"'
+
+Загрузка тест файлов из data/raw:
+python src/run_all_from_data.py
+
+Удалить все загруженные файлы из системы:
+curl -X DELETE "http://localhost:9200/documents"
+
 ## Кто что сделал (пояснительная записка каждую неделю)
 
 12 - 18 октября 
