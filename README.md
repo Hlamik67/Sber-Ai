@@ -8,22 +8,26 @@
 
 ## Запуск сайта
 Windows:
-docker compose up
+`docker compose up`
 
 Далее в новом терминале 
-- python -m venv venv
-- .\venv\Scripts\activate
-- pip install -r requirements.txt
-- streamlit run app.py
+```bash
+ python -m venv venv
+ .\venv\Scripts\activate
+-pip install -r requirements.txt
+-streamlit run app.py
+```
 
 Mac:
-docker compose up
+`docker compose up`
 
 Далее в новом терминале 
+```bash
 - python3 -m venv venv
 - source venv/bin/activate
 - pip install -r requirements.txt
 - streamlit run app.py
+```
 
 <!-- # Потом допишу  -->
 
