@@ -10,11 +10,14 @@
 
 Скачиваем весь репозиторий себе на комп через PowerShell/Терминал:
 Mac:
-cd \~/Desktop
+```cd \~/Desktop```
+
 Windows:
+```bash
 cd $HOME\\Desktop
 git clone https://github.com/Hlamik67/Sber-Ai.git
 cd Sber-Ai
+```
 
 ## Кто где пишит
 
@@ -33,31 +36,42 @@ notebooks — общая папка для черновиков. Демо и о�
 ## Подгрузка изменений с Github себе:
 
 Mac:
+```bash
 cd \~/Desktop/Sber-Ai
 git pull
+```
+
 Windows:
+```bash
 cd $HOME\\Desktop\\Sber-Ai
 git pull
+```
 
 Это делать каждый раз перед началом работы, чтобы все изменения с Github были на локальном компьютере
 
 ## Выгрузка в Github
 
 Каждый один раз настраивает это у себя, в папке проекта.
+```bash
 cd $HOME\\Desktop\\Sber-Ai
 git config user.name "Имя Фамилия"
 git config user.email "почта указанная на Github"
+```
 
 Для проверки:
+```bash
 git config user.name
 git config user.email
+```
 
 Выгрузка:
+```bash
 git pull
 git status
 git add .  
 git commit -m "Что изменилось"
 git push
+```
 
 Примечание
 git add . - выгружает все измененные файлы, если нужно выгрузить определенный файл, то вместо точки название файла
@@ -65,23 +79,26 @@ git add . - выгружает все измененные файлы, если 
 ## Запуск сайта с нуля 
 
 Windows:
-docker compose up
+```docker compose up```
 
 Далее в новом терминале 
+```bash
 python -m venv venv
 .\venv\Scripts\activate
-(Если PowerShell выдаст ошибку про execution policy, выполни один раз: Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser, нажми Y, и попробуй снова).
 pip install -r requirements.txt
 streamlit run app.py
+```
 
 Mac:
-docker compose up
+```docker compose up```
 
 Далее в новом терминале 
+```bash
 python3 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
 streamlit run app.py
+```
 
 ## Работа с тестовыми данными 
 
@@ -89,25 +106,25 @@ Windows:
 Включить виртуальное окружение (venv) перед
 
 Чтобы посмотреть какие файлы загружены в систему: 
-curl.exe -s "http://localhost:9200/documents/_search?pretty" | Select-String '"file_name"'
+```curl.exe -s "http://localhost:9200/documents/_search?pretty" | Select-String '"file_name"' ```
 
 Загрузка тест файлов из data/raw:
-python src/run_all_from_data.py
+```python src/run_all_from_data.py```
 
 Удалить все загруженные файлы из системы:
-curl.exe -X DELETE "http://localhost:9200/documents"
+```curl.exe -X DELETE "http://localhost:9200/documents"```
 
 Mac:
 Включить виртуальное окружение (venv) перед
 
 Чтобы посмотреть какие файлы загружены в систему: 
-curl -s "http://localhost:9200/documents/_search?pretty" | grep '"file_name"'
+```curl -s "http://localhost:9200/documents/_search?pretty" | grep '"file_name"' ```
 
 Загрузка тест файлов из data/raw:
-python src/run_all_from_data.py
+```python src/run_all_from_data.py```
 
 Удалить все загруженные файлы из системы:
-curl -X DELETE "http://localhost:9200/documents"
+```curl -X DELETE "http://localhost:9200/documents"```
 
 ## Кто что сделал (пояснительная записка каждую неделю)
 
