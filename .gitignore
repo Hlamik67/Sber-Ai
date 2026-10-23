@@ -1,5 +1,4 @@
 # Суть файла: список того, что не попадает в git: модели, окружение, личные черновики.
-__pycache__/
 *.py[cod]
 *.egg-info/
 .venv/
@@ -20,7 +19,8 @@ report/draft_*.md
 .DS_Store
 Thumbs.db
 *.log
-.idea/
 ingest_output/
 src/ingest_output/
 ~$*
+.idea/
+__pycache__/
