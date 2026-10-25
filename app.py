@@ -5,7 +5,8 @@
 Цепочка вопроса:  поле вопроса -> search (Лиза Р) -> список кусков с оценкой и источником.
 
 Экран в две колонки: слева загрузка (нарезанные фрагменты свернуты под стрелкой),
-справа вопрос и найденные куски. Раскрытие стрелки слева не сдвигает поле вопроса.
+справа вопрос, ответ с источником (файл, раздел, страница) и пояснение, если ничего не
+найдено. Раскрытие стрелки слева не сдвигает поле вопроса.
 
 Запуск из корня репозитория:
     docker compose up -d
@@ -27,8 +28,8 @@ import config  # noqa: E402
 from ingest import ingest_file  # noqa: E402
 from chunking import chunk_document  # noqa: E402
 from index import index_chunks  # noqa: E402
-from search import search as search_chunks  # noqa: E402
-from elasticsearch import ConnectionError as ESConnectionError  # noqa: E402
+from search import search as search_chunks, get_es_client  # noqa: E402
+from elasticsearch import ConnectionError as ESConnectionError, NotFoundError  # noqa: E402
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 
@@ -77,6 +78,9 @@ def send(filename: str, data: bytes) -> dict:
     if chunks:
         try:
             index_chunks(chunks)
+            # Elasticsearch обновляет поиск раз в секунду: просим обновить сразу,
+            # чтобы только что загруженный файл был виден и в поиске, и в строке «В базе сейчас».
+            get_es_client().indices.refresh(index=config.ES_INDEX_NAME)
         except ESConnectionError:
             index_error = ("База недоступна: куски не сохранены. "
                            "Запущен ли Elasticsearch (docker compose up -d)?")
@@ -129,32 +133,116 @@ def ask(question: str) -> dict:
 
 def process_upload(uploaded) -> dict:
     """Проверки + отправка файла. Результат кладется в session_state,
-    чтобы статус и фрагменты не пропадали, когда человек задает вопрос."""
+    чтобы статус и фрагменты не пропадали, когда человек задает вопрос.
+
+    failed=True значит, что выбранный файл не попал в базу (по любой причине).
+    Это нужно, чтобы потом объяснить пустой ответ на вопрос."""
     if uploaded is None:
         return {"messages": [("error", "Файл не выбран. Выберите документ и нажмите «Отправить».")],
-                "chunks": []}
+                "chunks": [], "failed": False}
     if uploaded.size == 0:
-        return {"messages": [("error", "Файл пустой.")], "chunks": []}
+        return {"messages": [("error", "Файл пустой.")], "chunks": [], "failed": True,
+                "filename": uploaded.name}
     if uploaded.size > MAX_MB * 1024 * 1024:
-        return {"messages": [("error", f"Файл больше {MAX_MB} МБ.")], "chunks": []}
+        return {"messages": [("error", f"Файл больше {MAX_MB} МБ.")], "chunks": [], "failed": True,
+                "filename": uploaded.name}
 
     with st.spinner("Отправляем и нарезаем файл…"):
         res = send(uploaded.name, uploaded.getvalue())
 
     if res["status"] == "error":
-        return {"messages": [("error", res.get("message", "Файл не удалось нарезать."))], "chunks": []}
+        return {"messages": [("error", res.get("message", "Файл не удалось нарезать."))],
+                "chunks": [], "failed": True, "filename": uploaded.name}
 
     chunks = res.get("chunks") or []
     filename = res.get("filename", uploaded.name)
     if not chunks:
         return {"messages": [("warning", "Файл принят, но кусков не получилось. Проверьте, что в документе "
                                          "есть текст (слишком короткий текст отбрасывается при нарезке).")],
-                "chunks": []}
+                "chunks": [], "failed": True, "filename": filename}
     if res.get("index_error"):
         messages = [("info", f"Получено кусков: {len(chunks)}"), ("error", res["index_error"])]
+        failed = True
     else:
         messages = [("success", f"Готово: получено кусков — {len(chunks)}, сохранено в базе.")]
-    return {"messages": messages, "chunks": chunks, "filename": filename}
+        failed = False
+    return {"messages": messages, "chunks": chunks, "filename": filename, "failed": failed}
+
+
+# Причины, по которым поиск мог ничего не вернуть. level: цвет плашки на экране.
+# Позже (неделя 2–8 ноября) эти фразы должны приходить из кода системы, а не из экрана.
+REASONS = {
+    "db_unavailable": {
+        "level": "error", "title": "База недоступна",
+        "message": "Поиск не смог обратиться к базе. Проверьте, что Elasticsearch запущен "
+                   "(docker compose up -d), и повторите вопрос.",
+    },
+    "file_not_indexed": {
+        "level": "error", "title": "Файл не попал в базу",
+        "message": "Загруженный файл не сохранился в базе, поэтому искать в нём нельзя. "
+                   "Причина указана слева у загрузки. Исправьте её и загрузите файл ещё раз.",
+    },
+    "db_empty": {
+        "level": "info", "title": "База пока пустая",
+        "message": "Искать негде: ни один документ ещё не загружен. "
+                   "Загрузите документ слева и повторите вопрос.",
+    },
+    "no_common_words": {
+        "level": "warning", "title": "Ничего не нашлось",
+        "message": "Документы в базе есть, но слов из вашего вопроса в них не нашлось. "
+                   "Поиск пока работает по словам: попробуйте спросить короче и словами из документа, "
+                   "например «срок рассмотрения».",
+    },
+}
+
+
+def explain_empty(last_upload: dict | None) -> dict:
+    """Почему поиск ничего не вернул. Проверки идут по порядку, берется первая сработавшая.
+
+    1) база недоступна; 2) последний загруженный файл не попал в базу
+    (ошибка при загрузке или не все его куски найдены в индексе); 3) база пустая;
+    4) база не пустая и работает: значит, в вопросе нет общих слов с документами.
+    """
+    try:
+        es = get_es_client()
+        if not es.ping():
+            return REASONS["db_unavailable"]
+        index_exists = bool(es.indices.exists(index=config.ES_INDEX_NAME))
+        total = es.count(index=config.ES_INDEX_NAME)["count"] if index_exists else 0
+
+        file_missing = bool(last_upload and last_upload.get("failed"))
+        ids = [c["chunk_id"] for c in (last_upload or {}).get("chunks", [])]
+        if ids and not file_missing:
+            found = es.count(index=config.ES_INDEX_NAME,
+                             query={"ids": {"values": ids}})["count"] if index_exists else 0
+            file_missing = found < len(ids)
+    except Exception:
+        return REASONS["db_unavailable"]
+
+    if file_missing:
+        return REASONS["file_not_indexed"]
+    if total == 0:
+        return REASONS["db_empty"]
+    return REASONS["no_common_words"]
+
+
+def db_summary() -> dict:
+    """Что лежит в базе: сколько кусков и из каких файлов.
+
+    {"status": "ok", "total": int, "files": [(имя файла, число кусков), ...]}
+    {"status": "unavailable"}, если база не отвечает.
+    """
+    try:
+        es = get_es_client()
+        resp = es.search(index=config.ES_INDEX_NAME, size=0, track_total_hits=True,
+                         aggs={"files": {"terms": {"field": "file_name", "size": 50}}})
+    except NotFoundError:  # индекса ещё нет: ничего не загружали
+        return {"status": "ok", "total": 0, "files": []}
+    except Exception:
+        return {"status": "unavailable"}
+    total = resp["hits"]["total"]["value"]
+    files = [(b["key"], b["doc_count"]) for b in resp["aggregations"]["files"]["buckets"]]
+    return {"status": "ok", "total": total, "files": files}
 
 
 # ---------------------------------------------------------------------------
@@ -218,6 +306,16 @@ div[data-baseweb="input"]:focus-within { border-color: var(--g) !important; }
 .match-fill { height: 100%; background: linear-gradient(90deg, #21A038, #5cc77a); border-radius: 999px; }
 .match-label { font-size: .8rem; color: var(--green-text); font-weight: 600; white-space: nowrap; }
 
+.answer-label { font-size: .8rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
+                color: var(--green-text); margin: .4rem 0 -.2rem; }
+.card-answer { background: var(--tint-strong); border-left-width: 8px; }
+.card-answer .card-text { font-size: 1.02rem; }
+.card-answer .card-meta { opacity: .85; font-weight: 600; }
+
+.dbbox { border: 1px dashed var(--line); border-radius: 12px; padding: .6rem .9rem; margin: .8rem 0;
+         font-size: .9rem; line-height: 1.5; }
+.dbbox b { color: var(--green-text); }
+
 /* Плашки сообщений: цветной полупрозрачный фон + текст цвета темы, читаются в светлой и тёмной теме */
 .note { border-radius: 12px; padding: .8rem 1rem; margin: .5rem 0; font-size: .95rem;
         line-height: 1.45; border: 1px solid; border-left-width: 5px; }
@@ -239,23 +337,49 @@ def meta_line(file, section, page, chunk_id) -> str:
             f"Номер куска: {chunk_id}")
 
 
-def card(text: str, meta: str, share: float | None = None, label: str = "") -> None:
-    """Карточка с текстом куска. HTML держим в одной строке, чтобы Markdown его не ломал."""
+def card(text: str, meta: str, share: float | None = None, label: str = "",
+         highlight: bool = False) -> None:
+    """Карточка с текстом куска. HTML держим в одной строке, чтобы Markdown его не ломал.
+    highlight=True: главный ответ (крупнее и ярче)."""
     bar = ""
     if share is not None:
         bar = (f'<div class="match"><div class="match-bar"><div class="match-fill" '
                f'style="width:{share * 100:.0f}%"></div></div>'
                f'<span class="match-label">{esc(label)}</span></div>')
+    cls = "card card-answer" if highlight else "card"
     st.markdown(
-        f'<div class="card">{bar}<div class="card-text">{esc(text)}</div>'
+        f'<div class="{cls}">{bar}<div class="card-text">{esc(text)}</div>'
         f'<div class="card-meta">{esc(meta)}</div></div>',
         unsafe_allow_html=True,
     )
 
 
-def notice(level: str, text: str) -> None:
+def source_line(file, section, page, chunk_id) -> str:
+    """Откуда взят ответ: файл, раздел, страница."""
+    return (f"Источник: {file} · раздел: {section or 'не указан'} · "
+            f"страница: {page if page is not None else 'не указана'} · номер куска: {chunk_id}")
+
+
+def notice(level: str, text: str, title: str | None = None) -> None:
     """Плашка с сообщением (success / error / warning / info) в зелёной гамме, читается в светлой и тёмной теме."""
-    st.markdown(f'<div class="note note-{level}">{esc(text)}</div>', unsafe_allow_html=True)
+    head = f"<b>{esc(title)}</b><br>" if title else ""
+    st.markdown(f'<div class="note note-{level}">{head}{esc(text)}</div>', unsafe_allow_html=True)
+
+
+def db_box() -> None:
+    """Строка «что сейчас лежит в базе»: видно, в каких документах идёт поиск."""
+    info = db_summary()
+    if info["status"] != "ok":
+        body = "<b>В базе:</b> база недоступна"
+    elif info["total"] == 0:
+        body = "<b>В базе:</b> пока нет документов"
+    else:
+        files = info["files"]
+        names = ", ".join(f"{esc(str(n))} ({c})" for n, c in files[:8])
+        more = f" и ещё {len(files) - 8}" if len(files) > 8 else ""
+        body = (f"<b>В базе сейчас:</b> кусков — {info['total']}. "
+                f"Файлы (кусков в каждом): {names}{more}")
+    st.markdown(f'<div class="dbbox">{body}</div>', unsafe_allow_html=True)
 
 
 def section_title(number: str, title: str) -> None:
@@ -281,18 +405,28 @@ left, right = st.columns([1, 1.5], gap="large")
 # Слева: загрузка. Фрагменты свернуты под стрелкой, поле вопроса справа от этого не сдвигается.
 with left:
     section_title("1", "Документ")
-    uploaded = st.file_uploader("Выберите файл (PDF, DOCX, TXT)", type=ALLOWED)
+    # Ключ загрузчика меняется после каждой отправки: поле очищается, файл из него пропадает.
+    uploader_key = f"uploader_{st.session_state.get('uploader_n', 0)}"
+    uploaded = st.file_uploader("Выберите файл (PDF, DOCX, TXT)", type=ALLOWED, key=uploader_key)
     if st.button("Отправить", type="primary"):
         st.session_state["upload"] = process_upload(uploaded)
+        if uploaded is not None:
+            st.session_state["uploader_n"] = st.session_state.get("uploader_n", 0) + 1
+            st.rerun()
 
     up = st.session_state.get("upload")
     if up:
+        if up.get("filename"):
+            st.caption(f"Последний отправленный файл: {up['filename']}")
         for level, text in up["messages"]:
             NOTICE[level](text)
-        if up["chunks"]:
-            with st.expander(f"Показать нарезанные фрагменты ({len(up['chunks'])})", expanded=False):
-                for c in up["chunks"]:
-                    card(c["text"], meta_line(up["filename"], c["section"], c["page"], c["chunk_id"]))
+
+    db_box()
+
+    if up and up["chunks"]:
+        with st.expander(f"Показать нарезанные фрагменты ({len(up['chunks'])})", expanded=False):
+            for c in up["chunks"]:
+                card(c["text"], meta_line(up["filename"], c["section"], c["page"], c["chunk_id"]))
 
 # Справа: вопрос и найденные куски.
 with right:
@@ -306,7 +440,11 @@ with right:
             st.session_state["answer"] = {"error": "Введите вопрос."}
         else:
             with st.spinner("Ищем…"):
-                st.session_state["answer"] = {"question": question.strip(), "ans": ask(question.strip())}
+                ans = ask(question.strip())
+                reason = None
+                if ans["status"] == "ok" and not ans["results"]:
+                    reason = explain_empty(st.session_state.get("upload"))
+                st.session_state["answer"] = {"question": question.strip(), "ans": ans, "reason": reason}
 
     ans_state = st.session_state.get("answer")
     if ans_state:
@@ -316,20 +454,32 @@ with right:
             ans = ans_state["ans"]
             st.caption(f"Ваш вопрос: «{ans_state['question']}»")
             if ans["status"] == "error":
-                notice("error", ans.get("message", "Поиск не сработал."))
+                notice("error", ans.get("message", "Поиск не сработал."), title="Поиск не сработал")
             elif not ans["results"]:
-                # Заглушка: подробные причины (файл не прочитался, нет общих слов, база пуста)
-                # появятся в коде следующей недели.
-                notice("warning", "Ничего не найдено. Возможно, в вопросе нет слов из документов, "
-                                  "или в базе ещё нет документов.")
+                # Причина вычислена в explain_empty: база недоступна / файл не попал в базу /
+                # база пустая / нет общих слов с документами.
+                reason = ans_state.get("reason") or REASONS["no_common_words"]
+                notice(reason["level"], reason["message"], title=reason["title"])
             else:
-                notice("success", f"Найдено фрагментов: {len(ans['results'])}")
-                top = ans["results"][0]["score"] or 1.0
-                for r in ans["results"]:
-                    share = max(0.0, min(1.0, r["score"] / top))
-                    card(
-                        r["text"],
-                        meta_line(r["file"], r["section"], r["page"], r["chunk_id"]),
-                        share=share,
-                        label=f"Насколько подошёл: {share:.0%} (оценка {r['score']:.2f})",
-                    )
+                results = ans["results"]
+                top = results[0]["score"] or 1.0
+                best = results[0]
+                st.markdown('<div class="answer-label">Ответ</div>', unsafe_allow_html=True)
+                card(
+                    best["text"],
+                    source_line(best["file"], best["section"], best["page"], best["chunk_id"]),
+                    share=1.0,
+                    label=f"Насколько подошёл: 100% (оценка {best['score']:.2f})",
+                    highlight=True,
+                )
+                others = results[1:]
+                if others:
+                    with st.expander(f"Другие найденные фрагменты ({len(others)})", expanded=False):
+                        for r in others:
+                            share = max(0.0, min(1.0, r["score"] / top))
+                            card(
+                                r["text"],
+                                source_line(r["file"], r["section"], r["page"], r["chunk_id"]),
+                                share=share,
+                                label=f"Насколько подошёл: {share:.0%} (оценка {r['score']:.2f})",
+                            )
