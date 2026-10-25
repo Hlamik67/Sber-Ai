@@ -10,11 +10,14 @@
 
 Скачиваем весь репозиторий себе на комп через PowerShell/Терминал:
 Mac:
-cd \~/Desktop
+```cd \~/Desktop```
+
 Windows:
+```bash
 cd $HOME\\Desktop
 git clone https://github.com/Hlamik67/Sber-Ai.git
 cd Sber-Ai
+```
 
 ## Кто где пишит
 
@@ -33,31 +36,42 @@ notebooks — общая папка для черновиков. Демо и о�
 ## Подгрузка изменений с Github себе:
 
 Mac:
+```bash
 cd \~/Desktop/Sber-Ai
 git pull
+```
+
 Windows:
+```bash
 cd $HOME\\Desktop\\Sber-Ai
 git pull
+```
 
 Это делать каждый раз перед началом работы, чтобы все изменения с Github были на локальном компьютере
 
 ## Выгрузка в Github
 
 Каждый один раз настраивает это у себя, в папке проекта.
+```bash
 cd $HOME\\Desktop\\Sber-Ai
 git config user.name "Имя Фамилия"
 git config user.email "почта указанная на Github"
+```
 
 Для проверки:
+```bash
 git config user.name
 git config user.email
+```
 
 Выгрузка:
+```bash
 git pull
 git status
 git add .  
 git commit -m "Что изменилось"
 git push
+```
 
 Примечание
 git add . - выгружает все измененные файлы, если нужно выгрузить определенный файл, то вместо точки название файла
@@ -65,23 +79,26 @@ git add . - выгружает все измененные файлы, если 
 ## Запуск сайта с нуля 
 
 Windows:
-docker compose up
+```docker compose up```
 
 Далее в новом терминале 
+```bash
 python -m venv venv
 .\venv\Scripts\activate
-(Если PowerShell выдаст ошибку про execution policy, выполни один раз: Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser, нажми Y, и попробуй снова).
 pip install -r requirements.txt
 streamlit run app.py
+```
 
 Mac:
-docker compose up
+```docker compose up```
 
 Далее в новом терминале 
+```bash
 python3 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
 streamlit run app.py
+```
 
 ## Работа с тестовыми данными 
 
@@ -89,25 +106,25 @@ Windows:
 Включить виртуальное окружение (venv) перед
 
 Чтобы посмотреть какие файлы загружены в систему: 
-curl.exe -s "http://localhost:9200/documents/_search?pretty" | Select-String '"file_name"'
+```curl.exe -s "http://localhost:9200/documents/_search?pretty" | Select-String '"file_name"' ```
 
 Загрузка тест файлов из data/raw:
-python src/run_all_from_data.py
+```python src/run_all_from_data.py```
 
 Удалить все загруженные файлы из системы:
-curl.exe -X DELETE "http://localhost:9200/documents"
+```curl.exe -X DELETE "http://localhost:9200/documents"```
 
 Mac:
 Включить виртуальное окружение (venv) перед
 
 Чтобы посмотреть какие файлы загружены в систему: 
-curl -s "http://localhost:9200/documents/_search?pretty" | grep '"file_name"'
+```curl -s "http://localhost:9200/documents/_search?pretty" | grep '"file_name"' ```
 
 Загрузка тест файлов из data/raw:
-python src/run_all_from_data.py
+```python src/run_all_from_data.py```
 
 Удалить все загруженные файлы из системы:
-curl -X DELETE "http://localhost:9200/documents"
+```curl -X DELETE "http://localhost:9200/documents"```
 
 ## Кто что сделал (пояснительная записка каждую неделю)
 
@@ -134,7 +151,7 @@ curl -X DELETE "http://localhost:9200/documents"
 
 - `ingest.py` модуль извлечения текста. Умеет читать `.md`, `.docx` и `.pdf`. Очищает текст от битых кодировок, шапок, колонтитулов и номеров страниц. Для PDF определяет колонки и размеры шрифтов (чтобы найти заголовки). Определяет язык документа. Сохраняет результат в виде структурированного JSON-файла в папку `ingest_output/`.
 
-- `chunking.py` модуль нарезки. Берет текст из `Document` и режет его на куски (около 1000 символов). Старается резать по границам предложений. Добавляет перекрытие (overlap), чтобы не терять смысл на стыках, при этом не разрывая слова. Восстанавливает иерархию разделов (section_path) для каждого куска (важно для DOCX и MD). Присваивает каждому куску стабильный `chunk_id`.
+- `chunking.py` режет очищенный текст на фрагменты для поиска. PDF делится постранично, а Markdown и DOCX — по заголовкам. Каждый заголовок и текст под ним образуют один кусок (даже если короткий). Если текст слишком длинный, он дополнительно режется по предложениям без дублирования (перекрытия нет). Каждому куску присваивается стабильный ID и метаданные (имя файла, раздел, страница).
 
 - `index.py` модуль работы с Elasticsearch. Создает индекс с анализатором русского языка. Записывает нарезанные куски в базу данных пачками (bulk). Если такой `chunk_id` уже есть, обновляет его.
 
@@ -177,6 +194,8 @@ curl -X DELETE "http://localhost:9200/documents"
 - Открыто: search() при любой ошибке Elasticsearch возвращает пустой список, поэтому «база недоступна» и «ничего не нашлось» пока не отличить. Для причин на следующей неделе нужно, чтобы поиск возвращал причину (Лиза Р).
 
 Лиза Р:
+- Добавила файл search.py с поиском. Принимает вопрос пользователя, отправляет его в Elasticsearch и возвращает список самых релевантных кусков. Использует поиск по точной фразе и буст по заголовкам разделов, чтобы находить именно те абзацы, где есть ответ.
+- Исправлена нарезка файла chunking.py. Теперь она производится по заголовкам, если текст после заголовка слишком большой, он дополнительно режется на куски.
 
 Лиза К:
 jsonl:
