@@ -8,14 +8,14 @@
 {"question": "Кому не откроют доступ к платёжному контуру?", "chunk_id": "49edfbad139d8217", "scenario": "условия", "wording": "как в документе", "file": "dostup_k_sistemam.md"}
 {"question": "Что делать, если заявка на доступ без согласования руководителя?", "chunk_id": "0f6dc30ae26781cf", "scenario": "условия", "wording": "как в документе", "file": "dostup_k_sistemam.md"}
 {"question": "Можно ли выдать доступ стажёру на время практики?", "chunk_id": "58b52d996ee10180", "scenario": "условия", "wording": "как в документе", "file": "dostup_k_sistemam.md"}
-{"question": "Когда нужно сдавать заявку на отпуск, чтобы не остаться без дней?", "chunk_id": "", "scenario": "срок", "wording": "своими словами", "file": "poryadok_otpuska.md"}
-{"question": "К какому числу начальник обязан подписать отпуск?", "chunk_id": "", "scenario": "срок", "wording": "своими словами", "file": "poryadok_otpuska.md"}
-{"question": "Я не успел подать заявление на отпуск вовремя, что теперь делать?", "chunk_id": "", "scenario": "срок", "wording": "своими словами", "file": "poryadok_otpuska.md"}
+{"question": "Когда нужно сдавать заявку на отпуск, чтобы не остаться без дней?", "chunk_id": "56989fa75568974f", "scenario": "срок", "wording": "своими словами", "file": "poryadok_otpuska.md"}
+{"question": "К какому числу начальник обязан подписать отпуск?", "chunk_id": "349b979c16c164bf", "scenario": "срок", "wording": "своими словами", "file": "poryadok_otpuska.md"}
+{"question": "Я не успел подать заявление на отпуск вовремя, что теперь делать?", "chunk_id": "d238b300ae187dd2", "scenario": "срок", "wording": "своими словами", "file": "poryadok_otpuska.md"}
 {"question": "За сколько дней до отдыха надо оформить бумаги?", "chunk_id": "", "scenario": "срок", "wording": "своими словами", "file": "poryadok_otpuska.md"}
 {"question": "Без какой бумажки не оформят рабочую поездку?", "chunk_id": "", "scenario": "документ", "wording": "своими словами", "file": "reglament_komandirovki.md"}
-{"question": "Какие чеки и бумаги собирать после возвращения из командировки для отчета?", "chunk_id": "", "scenario": "документ", "wording": "своими словами", "file": "reglament_komandirovki.md"}
-{"question": "Что нужно подготовить, чтобы отправиться в командировку?", "chunk_id": "", "scenario": "документ", "wording": "своими словами", "file": "reglament_komandirovki.md"}
-{"question": "Меня выпустят в поездку, если у меня нет служебного задания?", "chunk_id": "", "scenario": "документ", "wording": "своими словами", "file": "reglament_komandirovki.md"}
-{"question": "Кого не пустят в платежную систему?", "chunk_id": "", "scenario": "условия", "wording": "своими словами", "file": "dostup_k_sistemam.md"}
-{"question": "Я отправил заявку на доступ, а начальник ее не одобрил, что делать?", "chunk_id": "", "scenario": "условия", "wording": "своими словами", "file": "dostup_k_sistemam.md"}
-{"question": "Дадут ли доступ к системе студенту-практиканту?", "chunk_id": "", "scenario": "условия", "wording": "своими словами", "file": "dostup_k_sistemam.md"}
+{"question": "Какие чеки и бумаги собирать после возвращения из командировки для отчета?", "chunk_id": "dc89229d3ad50a1d", "scenario": "документ", "wording": "своими словами", "file": "reglament_komandirovki.md"}
+{"question": "Что нужно подготовить, чтобы отправиться в командировку?", "chunk_id": "6e9f987ce10ef0fe", "scenario": "документ", "wording": "своими словами", "file": "reglament_komandirovki.md"}
+{"question": "Меня выпустят в поездку, если у меня нет служебного задания?", "chunk_id": "36769828b4a68935", "scenario": "документ", "wording": "своими словами", "file": "reglament_komandirovki.md"}
+{"question": "Кого не пустят в платежную систему?", "chunk_id": "49edfbad139d8217", "scenario": "условия", "wording": "своими словами", "file": "dostup_k_sistemam.md"}
+{"question": "Я отправил заявку на доступ, а начальник ее не одобрил, что делать?", "chunk_id": "0f6dc30ae26781cf", "scenario": "условия", "wording": "своими словами", "file": "dostup_k_sistemam.md"}
+{"question": "Дадут ли доступ к системе студенту-практиканту?", "chunk_id": "58b52d996ee10180", "scenario": "условия", "wording": "своими словами", "file": "dostup_k_sistemam.md"}
