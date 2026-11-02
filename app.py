@@ -103,8 +103,11 @@ def send(filename: str, data: bytes) -> dict:
     }
 
 
+_log = logging.getLogger("screen")
+
+
 def ask(question: str) -> dict:
-    """Вопрос -> search (Лиза Р) -> формат экрана.
+    """Вопрос -> search (Лиза Р). Только поиск, без объяснений.
 
     Успех:  {"status": "ok", "results": [{chunk_id, text, file, section, page, score}]}
             results пустой, если ничего не нашлось.
@@ -135,95 +138,156 @@ def process_upload(uploaded) -> dict:
     """Проверки + отправка файла. Результат кладется в session_state,
     чтобы статус и фрагменты не пропадали, когда человек задает вопрос.
 
-    failed=True значит, что выбранный файл не попал в базу (по любой причине).
+    failed=True значит, что выбранный файл не попал в базу. stage говорит, на каком шаге:
+    "read"  - файл не прочитался / не нарезался / не принят (пустой, слишком большой);
+    "index" - файл прочитан и нарезан, но в базу не записался.
     Это нужно, чтобы потом объяснить пустой ответ на вопрос."""
     if uploaded is None:
         return {"messages": [("error", "Файл не выбран. Выберите документ и нажмите «Отправить».")],
-                "chunks": [], "failed": False}
+                "chunks": [], "failed": False, "stage": None}
     if uploaded.size == 0:
         return {"messages": [("error", "Файл пустой.")], "chunks": [], "failed": True,
-                "filename": uploaded.name}
+                "stage": "read", "filename": uploaded.name}
     if uploaded.size > MAX_MB * 1024 * 1024:
         return {"messages": [("error", f"Файл больше {MAX_MB} МБ.")], "chunks": [], "failed": True,
-                "filename": uploaded.name}
+                "stage": "read", "filename": uploaded.name}
 
     with st.spinner("Отправляем и нарезаем файл…"):
         res = send(uploaded.name, uploaded.getvalue())
 
     if res["status"] == "error":
         return {"messages": [("error", res.get("message", "Файл не удалось нарезать."))],
-                "chunks": [], "failed": True, "filename": uploaded.name}
+                "chunks": [], "failed": True, "stage": "read", "filename": uploaded.name}
 
     chunks = res.get("chunks") or []
     filename = res.get("filename", uploaded.name)
     if not chunks:
         return {"messages": [("warning", "Файл принят, но кусков не получилось. Проверьте, что в документе "
                                          "есть текст (слишком короткий текст отбрасывается при нарезке).")],
-                "chunks": [], "failed": True, "filename": filename}
+                "chunks": [], "failed": True, "stage": "read", "filename": filename}
     if res.get("index_error"):
         messages = [("info", f"Получено кусков: {len(chunks)}"), ("error", res["index_error"])]
-        failed = True
+        failed, stage = True, "index"
     else:
         messages = [("success", f"Готово: получено кусков — {len(chunks)}, сохранено в базе.")]
-        failed = False
-    return {"messages": messages, "chunks": chunks, "filename": filename, "failed": failed}
+        failed, stage = False, None
+    return {"messages": messages, "chunks": chunks, "filename": filename,
+            "failed": failed, "stage": stage}
 
 
-# Причины, по которым поиск мог ничего не вернуть. level: цвет плашки на экране.
-# Позже (неделя 2–8 ноября) эти фразы должны приходить из кода системы, а не из экрана.
+# ---------------------------------------------------------------------------
+# Ответ на вопрос и причины пустого результата.
+# Все фразы про пустой результат берутся ТОЛЬКО отсюда: экран их не придумывает,
+# а показывает то, что вернула answer_question(). Каждая причина выглядит по-своему:
+# свой цвет плашки (level), метка категории (tag) и заголовок (title).
+# ---------------------------------------------------------------------------
 REASONS = {
+    "empty_question": {
+        "level": "info", "tag": "Вопрос", "title": "Введите вопрос",
+        "message": "Поле вопроса пустое. Напишите вопрос своими словами и нажмите «Найти».",
+    },
     "db_unavailable": {
-        "level": "error", "title": "База недоступна",
+        "level": "error", "tag": "База", "title": "База недоступна",
         "message": "Поиск не смог обратиться к базе. Проверьте, что Elasticsearch запущен "
                    "(docker compose up -d), и повторите вопрос.",
     },
+    "search_failed": {
+        "level": "error", "tag": "Поиск", "title": "Поиск не сработал",
+        "message": "Во время поиска произошла ошибка. Повторите вопрос. Если не поможет, "
+                   "сообщите команде.",
+    },
+    "file_unreadable": {
+        "level": "error", "tag": "Файл", "title": "Файл не прочитался",
+        "message": "Последний загруженный файл не удалось прочитать или нарезать, поэтому искать в нём "
+                   "нельзя. Причина указана слева у загрузки. Исправьте файл и загрузите его заново.",
+    },
     "file_not_indexed": {
-        "level": "error", "title": "Файл не попал в базу",
-        "message": "Загруженный файл не сохранился в базе, поэтому искать в нём нельзя. "
-                   "Причина указана слева у загрузки. Исправьте её и загрузите файл ещё раз.",
+        "level": "error", "tag": "Файл", "title": "Файл не сохранился в базе",
+        "message": "Файл прочитан и нарезан, но записать его в базу не удалось, поэтому искать в нём "
+                   "нельзя. Когда база заработает, загрузите файл ещё раз.",
     },
     "db_empty": {
-        "level": "info", "title": "База пока пустая",
+        "level": "info", "tag": "База", "title": "База пока пустая",
         "message": "Искать негде: ни один документ ещё не загружен. "
                    "Загрузите документ слева и повторите вопрос.",
     },
     "no_common_words": {
-        "level": "warning", "title": "Ничего не нашлось",
-        "message": "Документы в базе есть, но слов из вашего вопроса в них не нашлось. "
-                   "Поиск пока работает по словам: попробуйте спросить короче и словами из документа, "
-                   "например «срок рассмотрения».",
+        "level": "warning", "tag": "Поиск", "title": "Нет общих слов с документами",
+        "message": "Ни одного слова из вашего вопроса нет в загруженных документах. "
+                   "Попробуйте спросить словами из документа, например «срок рассмотрения».",
+    },
+    "partial_words": {
+        "level": "warning", "tag": "Поиск", "title": "Слова есть, но не вместе",
+        "message": "Отдельные слова вашего вопроса в документах встречаются, но ни в одном "
+                   "фрагменте нет их всех сразу. Поиск пока ищет по словам: попробуйте спросить короче.",
     },
 }
+for _code, _reason in REASONS.items():
+    _reason["code"] = _code
 
 
-def explain_empty(last_upload: dict | None) -> dict:
-    """Почему поиск ничего не вернул. Проверки идут по порядку, берется первая сработавшая.
+def _words_reason(es, index: str, question: str) -> str:
+    """no_common_words: в базе нет ни одного слова вопроса; partial_words: слова есть, но не вместе."""
+    try:
+        tokens = es.indices.analyze(index=index, analyzer="russian", text=question)["tokens"]
+        terms = list(dict.fromkeys(t["token"] for t in tokens))[:10]
+        for term in terms:
+            if es.count(index=index, query={"term": {"text": term}})["count"] > 0:
+                return "partial_words"
+    except Exception:
+        _log.exception("Не удалось разобрать слова вопроса")
+    return "no_common_words"
 
-    1) база недоступна; 2) последний загруженный файл не попал в базу
+
+def diagnose_empty(question: str, last_upload: dict | None) -> dict:
+    """Почему поиск ничего не вернул. Проверки идут по порядку, берется первая сработавшая:
+
+    1) база недоступна; 2) последний загруженный файл не прочитался / не сохранился
     (ошибка при загрузке или не все его куски найдены в индексе); 3) база пустая;
-    4) база не пустая и работает: значит, в вопросе нет общих слов с документами.
+    4) база работает и не пуста: либо в вопросе нет общих слов с документами,
+       либо слова есть, но не вместе в одном куске.
     """
     try:
         es = get_es_client()
         if not es.ping():
             return REASONS["db_unavailable"]
-        index_exists = bool(es.indices.exists(index=config.ES_INDEX_NAME))
-        total = es.count(index=config.ES_INDEX_NAME)["count"] if index_exists else 0
+        index = config.ES_INDEX_NAME
+        index_exists = bool(es.indices.exists(index=index))
+        total = es.count(index=index)["count"] if index_exists else 0
 
-        file_missing = bool(last_upload and last_upload.get("failed"))
+        if last_upload and last_upload.get("failed"):
+            return REASONS["file_not_indexed" if last_upload.get("stage") == "index" else "file_unreadable"]
         ids = [c["chunk_id"] for c in (last_upload or {}).get("chunks", [])]
-        if ids and not file_missing:
-            found = es.count(index=config.ES_INDEX_NAME,
-                             query={"ids": {"values": ids}})["count"] if index_exists else 0
-            file_missing = found < len(ids)
+        if ids:
+            found = es.count(index=index, query={"ids": {"values": ids}})["count"] if index_exists else 0
+            if found < len(ids):
+                return REASONS["file_not_indexed"]
+
+        if total == 0:
+            return REASONS["db_empty"]
+        return REASONS[_words_reason(es, index, question)]
     except Exception:
+        _log.exception("Не удалось определить причину пустого результата")
         return REASONS["db_unavailable"]
 
-    if file_missing:
-        return REASONS["file_not_indexed"]
-    if total == 0:
-        return REASONS["db_empty"]
-    return REASONS["no_common_words"]
+
+def answer_question(question: str, last_upload: dict | None) -> dict:
+    """Единая точка для экрана: вопрос -> куски или причина, почему их нет.
+
+    {"status": "found", "results": [...], "reason": None}
+    {"status": "empty" | "error", "results": [], "reason": {code, level, tag, title, message}}
+    """
+    question = (question or "").strip()
+    if not question:
+        return {"status": "error", "results": [], "reason": REASONS["empty_question"]}
+
+    res = ask(question)
+    if res["status"] == "error":
+        _log.error("%s", res.get("message"))
+        return {"status": "error", "results": [], "reason": REASONS["search_failed"]}
+    if not res["results"]:
+        return {"status": "empty", "results": [], "reason": diagnose_empty(question, last_upload)}
+    return {"status": "found", "results": res["results"], "reason": None}
 
 
 def db_summary() -> dict:
@@ -319,6 +383,7 @@ div[data-baseweb="input"]:focus-within { border-color: var(--g) !important; }
 /* Плашки сообщений: цветной полупрозрачный фон + текст цвета темы, читаются в светлой и тёмной теме */
 .note { border-radius: 12px; padding: .8rem 1rem; margin: .5rem 0; font-size: .95rem;
         line-height: 1.45; border: 1px solid; border-left-width: 5px; }
+.note-tag { font-size: .7rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; opacity: .7; }
 .note-success { background: rgba(33,160,56,.14);  border-color: rgba(33,160,56,.65); }
 .note-error   { background: rgba(229,57,53,.14);  border-color: rgba(229,57,53,.70); }
 .note-warning { background: rgba(255,179,0,.18);  border-color: rgba(255,179,0,.75); }
@@ -360,9 +425,11 @@ def source_line(file, section, page, chunk_id) -> str:
             f"страница: {page if page is not None else 'не указана'} · номер куска: {chunk_id}")
 
 
-def notice(level: str, text: str, title: str | None = None) -> None:
-    """Плашка с сообщением (success / error / warning / info) в зелёной гамме, читается в светлой и тёмной теме."""
-    head = f"<b>{esc(title)}</b><br>" if title else ""
+def notice(level: str, text: str, title: str | None = None, tag: str | None = None) -> None:
+    """Плашка с сообщением (success / error / warning / info) в зелёной гамме, читается в светлой и тёмной теме.
+    tag: короткая метка категории над заголовком (Файл, База, Поиск, Вопрос)."""
+    head = (f'<span class="note-tag">{esc(tag)}</span><br>' if tag else "")
+    head += f"<b>{esc(title)}</b><br>" if title else ""
     st.markdown(f'<div class="note note-{level}">{head}{esc(text)}</div>', unsafe_allow_html=True)
 
 
@@ -436,50 +503,41 @@ with right:
         asked = st.form_submit_button("Найти", type="primary")
 
     if asked:
-        if not question.strip():
-            st.session_state["answer"] = {"error": "Введите вопрос."}
-        else:
-            with st.spinner("Ищем…"):
-                ans = ask(question.strip())
-                reason = None
-                if ans["status"] == "ok" and not ans["results"]:
-                    reason = explain_empty(st.session_state.get("upload"))
-                st.session_state["answer"] = {"question": question.strip(), "ans": ans, "reason": reason}
+        with st.spinner("Ищем…"):
+            st.session_state["answer"] = {
+                "question": question.strip(),
+                "ans": answer_question(question, st.session_state.get("upload")),
+            }
 
     ans_state = st.session_state.get("answer")
     if ans_state:
-        if ans_state.get("error"):
-            notice("error", ans_state["error"])
-        else:
-            ans = ans_state["ans"]
+        ans = ans_state["ans"]
+        if ans_state["question"]:
             st.caption(f"Ваш вопрос: «{ans_state['question']}»")
-            if ans["status"] == "error":
-                notice("error", ans.get("message", "Поиск не сработал."), title="Поиск не сработал")
-            elif not ans["results"]:
-                # Причина вычислена в explain_empty: база недоступна / файл не попал в базу /
-                # база пустая / нет общих слов с документами.
-                reason = ans_state.get("reason") or REASONS["no_common_words"]
-                notice(reason["level"], reason["message"], title=reason["title"])
-            else:
-                results = ans["results"]
-                top = results[0]["score"] or 1.0
-                best = results[0]
-                st.markdown('<div class="answer-label">Ответ</div>', unsafe_allow_html=True)
-                card(
-                    best["text"],
-                    source_line(best["file"], best["section"], best["page"], best["chunk_id"]),
-                    share=1.0,
-                    label=f"Насколько подошёл: 100% (оценка {best['score']:.2f})",
-                    highlight=True,
-                )
-                others = results[1:]
-                if others:
-                    with st.expander(f"Другие найденные фрагменты ({len(others)})", expanded=False):
-                        for r in others:
-                            share = max(0.0, min(1.0, r["score"] / top))
-                            card(
-                                r["text"],
-                                source_line(r["file"], r["section"], r["page"], r["chunk_id"]),
-                                share=share,
-                                label=f"Насколько подошёл: {share:.0%} (оценка {r['score']:.2f})",
-                            )
+        if ans["status"] != "found":
+            # Фраза и вид плашки приходят из answer_question(): экран сам ничего не подставляет.
+            r = ans["reason"]
+            notice(r["level"], r["message"], title=r["title"], tag=r["tag"])
+        else:
+            results = ans["results"]
+            top = results[0]["score"] or 1.0
+            best = results[0]
+            st.markdown('<div class="answer-label">Ответ</div>', unsafe_allow_html=True)
+            card(
+                best["text"],
+                source_line(best["file"], best["section"], best["page"], best["chunk_id"]),
+                share=1.0,
+                label=f"Насколько подошёл: 100% (оценка {best['score']:.2f})",
+                highlight=True,
+            )
+            others = results[1:]
+            if others:
+                with st.expander(f"Другие найденные фрагменты ({len(others)})", expanded=False):
+                    for r in others:
+                        share = max(0.0, min(1.0, r["score"] / top))
+                        card(
+                            r["text"],
+                            source_line(r["file"], r["section"], r["page"], r["chunk_id"]),
+                            share=share,
+                            label=f"Насколько подошёл: {share:.0%} (оценка {r['score']:.2f})",
+                        )
