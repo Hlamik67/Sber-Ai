@@ -7,7 +7,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 # Импортируем функции поиска (без гибрида, так как для него будет заглушка)
 try:
-    from search import search as word_search, semantic_search
+    from search import search as word_search, semantic_search, hybrid_search
 except ImportError as e:
     print(f"Ошибка импорта из search.py: {e}")
 
@@ -51,8 +51,12 @@ def search_by_semantic(query: str, k: int) -> list[str]:
         return []
 
 def search_hybrid(query: str, k: int) -> list[str]:
-    # ЗАГЛУШКА для гибридного поиска
-    return []
+    try:
+        results = hybrid_search(query, top_k=k)
+        return [res.chunk_id for res in results]
+    except Exception as e:
+        print(f"Ошибка гибридного поиска: {e}")
+        return []
 
 # --- МЕТРИКИ ---
 

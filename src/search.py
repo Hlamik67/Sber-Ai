@@ -158,3 +158,35 @@ def semantic_search(query: str, top_k: int = 5) -> list[SearchResult]:
             score=float(similarities[idx]) # Оценка схожести
         ))
     return results  
+
+
+# гибридный поиск
+def hybrid_search(query: str, top_k: int = 5) -> list[SearchResult]:
+    """Связка: берет результаты от поиска по словам и по смыслу, объединяет их через RRF."""
+    words_results = search(query, top_k=top_k*2)
+    sem_results = semantic_search(query, top_k=top_k*2)
+    
+    rrf_scores = {}
+    chunk_map = {}
+    k_rrf = 60 
+    
+    for rank, res in enumerate(words_results):
+        rrf_scores[res.chunk_id] = rrf_scores.get(res.chunk_id, 0.0) + 1.0 / (k_rrf + rank + 1)
+        chunk_map[res.chunk_id] = res
+        
+    # Начисляем баллы за позицию в результатах поиска по смыслу
+    for rank, res in enumerate(sem_results):
+        rrf_scores[res.chunk_id] = rrf_scores.get(res.chunk_id, 0.0) + 1.0 / (k_rrf + rank + 1)
+        if res.chunk_id not in chunk_map:
+            chunk_map[res.chunk_id] = res
+            
+    # Сортируем по итоговому баллу RRF
+    sorted_ids = sorted(rrf_scores.keys(), key=lambda x: rrf_scores[x], reverse=True)[:top_k]
+    
+    final_results = []
+    for cid in sorted_ids:
+        res = chunk_map[cid]
+        res.score = rrf_scores[cid]
+        final_results.append(res)
+        
+    return final_results
