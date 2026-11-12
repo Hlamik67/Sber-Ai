@@ -117,22 +117,29 @@ def load_embeddings():
 
     print("Загрузка чанков из Elasticsearch для семантики...")
     es = get_es_client()
-    response = es.search(index=config.ES_INDEX_NAME, body={"query": {"match_all": {}}, "size": 1000})
+    # МЕНЯЕМ 1000 НА 10000, чтобы захватить все куски
+    response = es.search(index=config.ES_INDEX_NAME, body={"query": {"match_all": {}}, "size": 10000})
     
     texts_to_embed = []
     for hit in response["hits"]["hits"]:
         source = hit["_source"]
         _chunks_data.append(source)
-        # Для модели e5 важен префикс "passage:"
         texts_to_embed.append(f"passage: {source['text']}")
         
     print(f"Найдено чанков: {len(_chunks_data)}. Вычисление эмбеддингов...")
     model = get_semantic_model()
     embeddings = model.encode(texts_to_embed, normalize_embeddings=True)
     _chunks_embeddings = np.array(embeddings)
+    print("Эмбеддинги готовы")
+def reset_semantic_cache():
+    """Сбрасывает кэш, чтобы новые файлы попали в поиск."""
+    global _chunks_data, _chunks_embeddings
+    _chunks_data = []
+    _chunks_embeddings = None
+    print("Кэш семантического поиска сброшен.")
 
-def semantic_search(query: str, top_k: int = 5) -> list[SearchResult]:
-    """Поиск по смыслу. Возвращает список объектов SearchResult, как и поиск по словам."""
+def semantic_search(query: str, top_k: int = 5, threshold: float = 0.75) -> list[SearchResult]:
+    """Поиск по смыслу с порогом отсечения."""
     load_embeddings()
     if len(_chunks_data) == 0:
         return []
@@ -140,11 +147,14 @@ def semantic_search(query: str, top_k: int = 5) -> list[SearchResult]:
     model = get_semantic_model()
     query_embedding = model.encode(f"query: {query}", normalize_embeddings=True)
     
-    # Считаем косинусное сходство
     similarities = np.dot(_chunks_embeddings, query_embedding)
-    # Берем топ-k индексов
     top_indices = np.argsort(similarities)[::-1][:top_k]
     
+    # ПРОВЕРКА ПОРОГА (Пункт 1)
+    # Если лучший результат ниже порога, значит вопрос не по теме
+    if len(top_indices) > 0 and similarities[top_indices[0]] < threshold:
+        return [] # Возвращаем пустоту, экран покажет "ничего не найдено"
+
     results = []
     for idx in top_indices:
         source = _chunks_data[idx]
@@ -155,10 +165,9 @@ def semantic_search(query: str, top_k: int = 5) -> list[SearchResult]:
             text=source.get("text", ""),
             section_path=source.get("section_path", []),
             page_number=source.get("page_number"),
-            score=float(similarities[idx]) # Оценка схожести
+            score=float(similarities[idx])
         ))
-    return results  
-
+    return results
 
 # гибридный поиск
 def hybrid_search(query: str, top_k: int = 5) -> list[SearchResult]:
