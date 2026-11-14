@@ -28,14 +28,15 @@ import config  # noqa: E402
 from ingest import ingest_file  # noqa: E402
 from chunking import chunk_document  # noqa: E402
 from index import index_chunks  # noqa: E402
-from search import search as search_chunks, get_es_client  # noqa: E402
+import search as search_module  # noqa: E402
+from search import hybrid_search, get_es_client  # noqa: E402
 from elasticsearch import ConnectionError as ESConnectionError, NotFoundError  # noqa: E402
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 
-ALLOWED = ["pdf", "docx", "txt"]
+ALLOWED = ["pdf", "docx", "md", "txt"]
 MAX_MB = getattr(config, "MAX_FILE_SIZE_MB", 20)
-TOP_K = 5  # сколько кусков показываем по вопросу
+TOP_K = 5  # сколько кандидатов берет связка; сотруднику показываем один лучший
 
 
 # ---------------------------------------------------------------------------
@@ -81,6 +82,7 @@ def send(filename: str, data: bytes) -> dict:
             # Elasticsearch обновляет поиск раз в секунду: просим обновить сразу,
             # чтобы только что загруженный файл был виден и в поиске, и в строке «В базе сейчас».
             get_es_client().indices.refresh(index=config.ES_INDEX_NAME)
+            reset_semantic_cache()  # чтобы новый файл искался и по смыслу
         except ESConnectionError:
             index_error = ("База недоступна: куски не сохранены. "
                            "Запущен ли Elasticsearch (docker compose up -d)?")
@@ -107,14 +109,14 @@ _log = logging.getLogger("screen")
 
 
 def ask(question: str) -> dict:
-    """Вопрос -> search (Лиза Р). Только поиск, без объяснений.
+    """Вопрос -> связка hybrid_search (Лиза К: поиск по словам + по смыслу). Только поиск, без объяснений.
 
     Успех:  {"status": "ok", "results": [{chunk_id, text, file, section, page, score}]}
             results пустой, если ничего не нашлось.
     Ошибка: {"status": "error", "code": str, "message": str}
     """
     try:
-        found = search_chunks(question, top_k=TOP_K)
+        found = hybrid_search(question, top_k=TOP_K)
     except Exception as e:
         return {"status": "error", "code": "search_failed",
                 "message": f"Поиск не сработал ({type(e).__name__}: {e})."}
@@ -194,7 +196,7 @@ REASONS = {
     "search_failed": {
         "level": "error", "tag": "Поиск", "title": "Поиск не сработал",
         "message": "Во время поиска произошла ошибка. Повторите вопрос. Если не поможет, "
-                   "сообщите команде.",
+                   "сообщите команде: подробности в терминале, где запущен streamlit.",
     },
     "file_unreadable": {
         "level": "error", "tag": "Файл", "title": "Файл не прочитался",
@@ -213,13 +215,14 @@ REASONS = {
     },
     "no_common_words": {
         "level": "warning", "tag": "Поиск", "title": "Нет общих слов с документами",
-        "message": "Ни одного слова из вашего вопроса нет в загруженных документах. "
-                   "Попробуйте спросить словами из документа, например «срок рассмотрения».",
+        "message": "Ни одного слова из вашего вопроса нет в загруженных документах, и по смыслу "
+                   "ничего достаточно близкого тоже не нашлось. Попробуйте спросить иначе "
+                   "или уточнить, о чём вопрос.",
     },
     "partial_words": {
-        "level": "warning", "tag": "Поиск", "title": "Слова есть, но не вместе",
-        "message": "Отдельные слова вашего вопроса в документах встречаются, но ни в одном "
-                   "фрагменте нет их всех сразу. Поиск пока ищет по словам: попробуйте спросить короче.",
+        "level": "warning", "tag": "Поиск", "title": "Слова есть, подходящего куска нет",
+        "message": "Отдельные слова вашего вопроса в документах встречаются, но подходящего "
+                   "фрагмента не нашлось. Попробуйте спросить короче или другими словами.",
     },
 }
 for _code, _reason in REASONS.items():
@@ -271,6 +274,26 @@ def diagnose_empty(question: str, last_upload: dict | None) -> dict:
         return REASONS["db_unavailable"]
 
 
+def reset_semantic_cache() -> None:
+    """Поиск по смыслу (Лиза К) считает векторы кусков один раз за запуск и потом не видит
+    новые файлы. После загрузки просим его сбросить кэш (функция Лизы К в search.py),
+    чтобы новый документ искался и по смыслу."""
+    try:
+        search_module.reset_semantic_cache()
+    except Exception:
+        _log.exception("Не удалось сбросить кэш поиска по смыслу")
+
+
+def diagnose_failure() -> dict:
+    """Поиск упал с ошибкой: если база не отвечает, говорим про базу, иначе общая ошибка поиска."""
+    try:
+        if not get_es_client().ping():
+            return REASONS["db_unavailable"]
+    except Exception:
+        return REASONS["db_unavailable"]
+    return REASONS["search_failed"]
+
+
 def answer_question(question: str, last_upload: dict | None) -> dict:
     """Единая точка для экрана: вопрос -> куски или причина, почему их нет.
 
@@ -284,7 +307,7 @@ def answer_question(question: str, last_upload: dict | None) -> dict:
     res = ask(question)
     if res["status"] == "error":
         _log.error("%s", res.get("message"))
-        return {"status": "error", "results": [], "reason": REASONS["search_failed"]}
+        return {"status": "error", "results": [], "reason": diagnose_failure()}
     if not res["results"]:
         return {"status": "empty", "results": [], "reason": diagnose_empty(question, last_upload)}
     return {"status": "found", "results": res["results"], "reason": None}
@@ -474,7 +497,7 @@ with left:
     section_title("1", "Документ")
     # Ключ загрузчика меняется после каждой отправки: поле очищается, файл из него пропадает.
     uploader_key = f"uploader_{st.session_state.get('uploader_n', 0)}"
-    uploaded = st.file_uploader("Выберите файл (PDF, DOCX, TXT)", type=ALLOWED, key=uploader_key)
+    uploaded = st.file_uploader("Выберите файл (PDF, DOCX, MD, TXT)", type=ALLOWED, key=uploader_key)
     if st.button("Отправить", type="primary"):
         st.session_state["upload"] = process_upload(uploaded)
         if uploaded is not None:
@@ -503,7 +526,10 @@ with right:
         asked = st.form_submit_button("Найти", type="primary")
 
     if asked:
-        with st.spinner("Ищем…"):
+        first = getattr(search_module, "_semantic_model", None) is None
+        wait = ("Ищем… Первый вопрос после запуска идёт дольше: загружается модель поиска по смыслу."
+                if first else "Ищем…")
+        with st.spinner(wait):
             st.session_state["answer"] = {
                 "question": question.strip(),
                 "ans": answer_question(question, st.session_state.get("upload")),
@@ -519,25 +545,11 @@ with right:
             r = ans["reason"]
             notice(r["level"], r["message"], title=r["title"], tag=r["tag"])
         else:
-            results = ans["results"]
-            top = results[0]["score"] or 1.0
-            best = results[0]
+            # Один ответ: лучший найденный кусок и откуда он взят. Текст не сочиняется.
+            best = ans["results"][0]
             st.markdown('<div class="answer-label">Ответ</div>', unsafe_allow_html=True)
             card(
                 best["text"],
                 source_line(best["file"], best["section"], best["page"], best["chunk_id"]),
-                share=1.0,
-                label=f"Насколько подошёл: 100% (оценка {best['score']:.2f})",
                 highlight=True,
             )
-            others = results[1:]
-            if others:
-                with st.expander(f"Другие найденные фрагменты ({len(others)})", expanded=False):
-                    for r in others:
-                        share = max(0.0, min(1.0, r["score"] / top))
-                        card(
-                            r["text"],
-                            source_line(r["file"], r["section"], r["page"], r["chunk_id"]),
-                            share=share,
-                            label=f"Насколько подошёл: {share:.0%} (оценка {r['score']:.2f})",
-                        )
